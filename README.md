@@ -71,6 +71,37 @@ Run schema regression tests:
 flutter test test/generator/schema_validation_test.dart
 ```
 
+Run idempotency regression test:
+
+```bash
+flutter test test/generator/idempotency_test.dart
+```
+
+Run missing-file recovery regression test:
+
+```bash
+flutter test test/generator/missing_file_recovery_test.dart
+```
+
+Run theme-map sync and wrapper contract tests:
+
+```bash
+flutter test test/generator/theme_map_sync_test.dart
+flutter test test/generator/token_wrapper_contract_test.dart
+```
+
+Run runtime design-system smoke tests:
+
+```bash
+flutter test test/design_system/runtime_smoke_test.dart
+```
+
+Run full generator reliability suite:
+
+```bash
+flutter test test/generator
+```
+
 Run all tests:
 
 ```bash
