@@ -50,10 +50,12 @@ String _themeBaseClassName() => 'GeneratedThemeColorTokens';
 
 String _tokenThemeClassName(String themeName) {
   if (themeName.toLowerCase() == 'light') {
-    return 'ColorTokens';
+    return 'LightColorTokens';
   }
   return '${_pascalCase(themeName)}ColorTokens';
 }
+
+String _tokenThemeBaseClassName() => 'ColorTokensBase';
 
 // ---------------- COLORS ----------------
 
@@ -307,14 +309,14 @@ void updateTokenWrappers(Map<String, dynamic> data) {
     }
     colorExtraClasses.add({
       'className': _tokenThemeClassName(themeName),
-      'extends': 'ColorTokens',
+      'extends': _themeClassName(themeName),
       'themeKey': themeName,
     });
   }
 
   final configs = {
     'color_tokens.dart': {
-      'className': 'ColorTokens',
+      'className': 'LightColorTokens',
       'extends': _themeClassName('light'),
       'imports': [
         '../generated/generated_color_tokens.dart',
@@ -362,6 +364,10 @@ void updateTokenWrappers(Map<String, dynamic> data) {
       content = '';
     }
 
+    if (fileName == 'color_tokens.dart') {
+      content = _cleanupCorruptColorBlock(content);
+    }
+
     for (final importLine in imports) {
       final importStatement = "import '$importLine';";
       if (!content.contains(importStatement)) {
@@ -370,15 +376,22 @@ void updateTokenWrappers(Map<String, dynamic> data) {
     }
 
     content = _ensureClass(content, className, extendsName);
+    if (fileName == 'color_tokens.dart') {
+      content = _ensureColorBaseClass(content);
+      content = _ensureImplements(content, className, _tokenThemeBaseClassName());
+    }
 
     for (final extraClass in extraClasses) {
       final extraName = extraClass['className'] as String;
       final extraExtends = extraClass['extends'] as String;
       content = _ensureClass(content, extraName, extraExtends);
+      if (fileName == 'color_tokens.dart') {
+        content = _ensureImplements(content, extraName, _tokenThemeBaseClassName());
+      }
     }
 
     if (fileName == 'color_tokens.dart') {
-      content = _ensureGetterOverrides(content, 'ColorTokens', lightColors.keys);
+      content = _ensureGetterOverrides(content, 'LightColorTokens', lightColors.keys);
 
       for (final extraClass in extraClasses) {
         final themeKey = extraClass['themeKey'] as String?;
@@ -388,7 +401,9 @@ void updateTokenWrappers(Map<String, dynamic> data) {
         }
         final theme = _map(themes[themeKey], 'Missing "themes.$themeKey" in tokens.json');
         final colors = _map(theme['colors'], 'Missing "themes.$themeKey.colors" in tokens.json');
-        content = _ensureColorOverrides(content, classForTheme, colors);
+        // For non-light theme wrappers, do not auto-inject properties.
+        // Only add @override when a getter already exists in that class.
+        content = _ensureGetterOverrides(content, classForTheme, colors.keys);
       }
     } else if (fileName == 'spacing_tokens.dart') {
       content = _ensureMethodOverrides(content, 'SpacingTokens', spacing.keys, 'double');
@@ -402,38 +417,6 @@ void updateTokenWrappers(Map<String, dynamic> data) {
 
     file.writeAsStringSync(content);
   }
-}
-
-String _ensureColorOverrides(
-  String content,
-  String className,
-  Map<String, dynamic> colors,
-) {
-  return _rewriteClassBody(content, className, (classBody) {
-    var body = classBody;
-
-    for (final entry in colors.entries) {
-      final key = entry.key;
-      final value = entry.value.toString().substring(1);
-      final getterBlock = '\n  @override\n  Color get $key => const Color(0xff$value);\n';
-
-      final existingGetterPattern = RegExp(
-        r'\s*(?:@override\s*)?Color\s+get\s+' +
-            key +
-            r'\s*=>\s*const\s+Color\(0xff[0-9A-Fa-f]{6,8}\);\s*',
-        multiLine: true,
-      );
-
-      if (existingGetterPattern.hasMatch(body)) {
-        body = body.replaceFirst(existingGetterPattern, getterBlock);
-        continue;
-      }
-
-      body += getterBlock;
-    }
-
-    return body;
-  });
 }
 
 String _ensureGetterOverrides(
@@ -507,7 +490,7 @@ String _rewriteClassBody(
   String Function(String classBody) rewrite,
 ) {
   final classMatch = RegExp(
-    r'class\s+' + className + r'\s+extends\s+\w+\s*\{',
+    r'class\s+' + className + r'\b\s+extends\s+\w+(?:\s+implements\s+[^\{]+)?\s*\{',
   ).firstMatch(content);
 
   if (classMatch == null) {
@@ -541,8 +524,54 @@ String _rewriteClassBody(
   return content.substring(0, openBraceIndex + 1) + newBody + content.substring(closeBraceIndex);
 }
 
+String _ensureColorBaseClass(String content) {
+  const decl = 'abstract class ColorTokensBase extends GeneratedThemeColorTokens';
+  if (content.contains(decl)) {
+    return content;
+  }
+
+  final classBlock = StringBuffer()
+    ..writeln('abstract class ${_tokenThemeBaseClassName()} extends GeneratedThemeColorTokens {')
+    ..writeln('  const ${_tokenThemeBaseClassName()}();')
+    ..writeln('}')
+    ..writeln();
+
+  final importRegex = RegExp(r'^(import\s+[\s\S]*?;\n)+', multiLine: true);
+  final match = importRegex.firstMatch(content);
+  if (match == null) {
+    return '${classBlock.toString()}$content';
+  }
+
+  final importsBlock = content.substring(0, match.end);
+  final remaining = content.substring(match.end);
+  return '$importsBlock\n${classBlock.toString()}$remaining';
+}
+
+String _ensureImplements(String content, String className, String interfaceName) {
+  final pattern = RegExp(
+    r'class\s+' + className + r'\b\s+extends\s+(\w+)(?:\s+implements\s+([^\{]+))?\s*\{',
+  );
+
+  return content.replaceFirstMapped(pattern, (match) {
+    final extendsName = match.group(1)!;
+    final existingImplements = match.group(2)?.trim();
+
+    if (existingImplements != null && existingImplements.contains(interfaceName)) {
+      return match.group(0)!;
+    }
+
+    if (existingImplements == null || existingImplements.isEmpty) {
+      return 'class $className extends $extendsName implements $interfaceName {';
+    }
+
+    return 'class $className extends $extendsName implements $existingImplements, $interfaceName {';
+  });
+}
+
 String _ensureClass(String content, String className, String extendsName) {
-  final classPattern = RegExp(r'class\s+' + className + r'(?:\s+extends\s+\w+)?');
+  final classPattern = RegExp(
+    r'class\s+' + className + r'\b(?:\s+extends\s+\w+)?(?:\s+implements\s+[^\{]+)?',
+  );
   final classReplacement = 'class $className extends $extendsName';
 
   if (classPattern.hasMatch(content)) {
@@ -558,6 +587,19 @@ String _ensureClass(String content, String className, String extendsName) {
   buffer.writeln('  const $className();');
   buffer.writeln('}');
   return buffer.toString();
+}
+
+String _cleanupCorruptColorBlock(String content) {
+  final corruptBlock = RegExp(
+    r'abstract class ColorTokens extends GeneratedLightColorTokensBase extends GeneratedThemeColorTokens \{[\s\S]*?\}\s*',
+  );
+  final renamedLegacyClass = RegExp(
+    r'class\s+ColorTokens\s+extends\s+GeneratedLightColorTokens\s+implements\s+ColorTokensBase\s*\{',
+  );
+  return content.replaceAll(corruptBlock, '').replaceAll(
+        renamedLegacyClass,
+        'class LightColorTokens extends GeneratedLightColorTokens implements ColorTokensBase {',
+      );
 }
 
 void updateTokensBarrel() {
@@ -594,7 +636,7 @@ import 'package:flutter/material.dart';
 import '../tokens/tokens.dart';
 
 class AppThemeExtension extends ThemeExtension<AppThemeExtension> {
-  final ColorTokens colors;
+  final ${_tokenThemeBaseClassName()} colors;
   final SpacingTokens spacing;
   final RadiusTokens radius;
   final TypographyTokens typography;
@@ -610,7 +652,7 @@ class AppThemeExtension extends ThemeExtension<AppThemeExtension> {
 
   @override
   AppThemeExtension copyWith({
-    ColorTokens? colors,
+    ${_tokenThemeBaseClassName()}? colors,
     SpacingTokens? spacing,
     RadiusTokens? radius,
     TypographyTokens? typography,
@@ -689,7 +731,7 @@ ${themeMapEntries.join('\n')}
   static ThemeData theme(String themeName) => themes[themeName] ?? themes.values.first;
 
   static ThemeData _buildTheme({
-    required ColorTokens colors,
+    required ${_tokenThemeBaseClassName()} colors,
     required Brightness brightness,
   }) {
     return ThemeData(
@@ -734,7 +776,7 @@ import '../tokens/color_tokens.dart';
 extension ContextExtension on BuildContext {
   AppThemeExtension get appTheme => Theme.of(this).extension<AppThemeExtension>()!;
 
-  ColorTokens get colors => appTheme.colors;
+  ${_tokenThemeBaseClassName()} get colors => appTheme.colors;
 
   SpaceExtension get space => SpaceExtension(this);
 

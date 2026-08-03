@@ -1,12 +1,10 @@
-import '../generated/generated_spacing_tokens.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 
 import '../responsive/responsive_value.dart';
 
-class SpacingTokens extends GeneratedSpacingTokens {
-  const SpacingTokens();
+class GeneratedSpacingTokens {
+  const GeneratedSpacingTokens();
 
-  @override
   double sm(context) {
     return ResponsiveValue<double>(
       mobile: 6,
@@ -15,7 +13,6 @@ class SpacingTokens extends GeneratedSpacingTokens {
     ).resolve(context).r;
   }
 
-  @override
   double md(context) {
     return ResponsiveValue<double>(
       mobile: 12,
@@ -24,7 +21,6 @@ class SpacingTokens extends GeneratedSpacingTokens {
     ).resolve(context).r;
   }
 
-  @override
   double lg(context) {
     return ResponsiveValue<double>(
       mobile: 20,
@@ -32,4 +28,6 @@ class SpacingTokens extends GeneratedSpacingTokens {
       desktop: 32,
     ).resolve(context).r;
   }
+
+
 }

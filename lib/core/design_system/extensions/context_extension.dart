@@ -1,13 +1,12 @@
 import 'package:flutter/material.dart';
 
 import '../theme/app_theme_extension.dart';
-import '../tokens/tokens.dart';
+import '../tokens/color_tokens.dart';
 
 extension ContextExtension on BuildContext {
-  AppThemeExtension get appTheme =>
-      Theme.of(this).extension<AppThemeExtension>()!;
+  AppThemeExtension get appTheme => Theme.of(this).extension<AppThemeExtension>()!;
 
-  ColorTokens get colors => appTheme.colors;
+  ColorTokensBase get colors => appTheme.colors;
 
   SpaceExtension get space => SpaceExtension(this);
 
@@ -18,7 +17,6 @@ extension ContextExtension on BuildContext {
   DimensionExtension get dimensions => DimensionExtension(this);
 }
 
-// spacing wrapper
 class SpaceExtension {
   final BuildContext context;
 
@@ -31,7 +29,6 @@ class SpaceExtension {
   double get lg => context.appTheme.spacing.lg(context);
 }
 
-// radius wrapper
 class RadiusExtension {
   final BuildContext context;
 
@@ -40,7 +37,6 @@ class RadiusExtension {
   double get md => context.appTheme.radius.md(context);
 }
 
-// typography wrapper
 class TypographyExtension {
   final BuildContext context;
 
@@ -51,7 +47,6 @@ class TypographyExtension {
   TextStyle get body => context.appTheme.typography.body(context);
 }
 
-// dimension wrapper
 class DimensionExtension {
   final BuildContext context;
 

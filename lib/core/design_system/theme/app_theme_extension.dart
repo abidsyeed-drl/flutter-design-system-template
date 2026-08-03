@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
+
 import '../tokens/tokens.dart';
 
 class AppThemeExtension extends ThemeExtension<AppThemeExtension> {
-  final ColorTokens colors;
+  final ColorTokensBase colors;
   final SpacingTokens spacing;
   final RadiusTokens radius;
   final TypographyTokens typography;
@@ -18,7 +19,7 @@ class AppThemeExtension extends ThemeExtension<AppThemeExtension> {
 
   @override
   AppThemeExtension copyWith({
-    ColorTokens? colors,
+    ColorTokensBase? colors,
     SpacingTokens? spacing,
     RadiusTokens? radius,
     TypographyTokens? typography,
@@ -38,6 +39,10 @@ class AppThemeExtension extends ThemeExtension<AppThemeExtension> {
     covariant ThemeExtension<AppThemeExtension>? other,
     double t,
   ) {
-    return this;
+    if (other is! AppThemeExtension) {
+      return this;
+    }
+
+    return t < 0.5 ? this : other;
   }
 }

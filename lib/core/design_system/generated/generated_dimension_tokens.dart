@@ -1,11 +1,10 @@
-import '../generated/generated_dimension_tokens.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 
 import '../responsive/responsive_value.dart';
 
-class DimensionTokens extends GeneratedDimensionTokens {
-  const DimensionTokens();
-  @override
+class GeneratedDimensionTokens {
+  const GeneratedDimensionTokens();
+
   double buttonHeight(context) {
     return ResponsiveValue<double>(
       mobile: 48,
@@ -14,7 +13,6 @@ class DimensionTokens extends GeneratedDimensionTokens {
     ).resolve(context).h;
   }
 
-  @override
   double icon(context) {
     return ResponsiveValue<double>(
       mobile: 20,
@@ -23,7 +21,6 @@ class DimensionTokens extends GeneratedDimensionTokens {
     ).resolve(context).r;
   }
 
-  @override
   double avatar(context) {
     return ResponsiveValue<double>(
       mobile: 40,
@@ -32,7 +29,6 @@ class DimensionTokens extends GeneratedDimensionTokens {
     ).resolve(context).r;
   }
 
-  @override
   double imageWidth(context) {
     return ResponsiveValue<double>(
       mobile: 100,
@@ -41,7 +37,6 @@ class DimensionTokens extends GeneratedDimensionTokens {
     ).resolve(context).w;
   }
 
-  @override
   double imageHeight(context) {
     return ResponsiveValue<double>(
       mobile: 80,
@@ -49,4 +44,6 @@ class DimensionTokens extends GeneratedDimensionTokens {
       desktop: 140,
     ).resolve(context).h;
   }
+
+
 }
