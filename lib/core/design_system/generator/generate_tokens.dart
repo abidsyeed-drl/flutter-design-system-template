@@ -288,6 +288,17 @@ void updateTokenWrappers(Map<String, dynamic> data) {
     throw StateError('tokens.json must define a "light" theme for ColorTokens');
   }
 
+  final lightTheme = _map(themes['light'], 'Missing "themes.light" in tokens.json');
+  final lightColors = _map(
+    lightTheme['colors'],
+    'Missing "themes.light.colors" in tokens.json',
+  );
+
+  final spacing = _map(data['spacing'], 'Missing "spacing" in tokens.json');
+  final radius = _map(data['radius'], 'Missing "radius" in tokens.json');
+  final typography = _map(data['typography'], 'Missing "typography" in tokens.json');
+  final dimensions = _map(data['dimensions'], 'Missing "dimensions" in tokens.json');
+
   final colorExtraClasses = <Map<String, dynamic>>[];
   for (final themeEntry in themeEntries) {
     final themeName = themeEntry.key;
@@ -367,6 +378,8 @@ void updateTokenWrappers(Map<String, dynamic> data) {
     }
 
     if (fileName == 'color_tokens.dart') {
+      content = _ensureGetterOverrides(content, 'ColorTokens', lightColors.keys);
+
       for (final extraClass in extraClasses) {
         final themeKey = extraClass['themeKey'] as String?;
         final classForTheme = extraClass['className'] as String;
@@ -377,6 +390,14 @@ void updateTokenWrappers(Map<String, dynamic> data) {
         final colors = _map(theme['colors'], 'Missing "themes.$themeKey.colors" in tokens.json');
         content = _ensureColorOverrides(content, classForTheme, colors);
       }
+    } else if (fileName == 'spacing_tokens.dart') {
+      content = _ensureMethodOverrides(content, 'SpacingTokens', spacing.keys, 'double');
+    } else if (fileName == 'radius_tokens.dart') {
+      content = _ensureMethodOverrides(content, 'RadiusTokens', radius.keys, 'double');
+    } else if (fileName == 'typography_tokens.dart') {
+      content = _ensureMethodOverrides(content, 'TypographyTokens', typography.keys, 'TextStyle');
+    } else if (fileName == 'dimension_tokens.dart') {
+      content = _ensureMethodOverrides(content, 'DimensionTokens', dimensions.keys, 'double');
     }
 
     file.writeAsStringSync(content);
@@ -387,6 +408,103 @@ String _ensureColorOverrides(
   String content,
   String className,
   Map<String, dynamic> colors,
+) {
+  return _rewriteClassBody(content, className, (classBody) {
+    var body = classBody;
+
+    for (final entry in colors.entries) {
+      final key = entry.key;
+      final value = entry.value.toString().substring(1);
+      final getterBlock = '\n  @override\n  Color get $key => const Color(0xff$value);\n';
+
+      final existingGetterPattern = RegExp(
+        r'\s*(?:@override\s*)?Color\s+get\s+' +
+            key +
+            r'\s*=>\s*const\s+Color\(0xff[0-9A-Fa-f]{6,8}\);\s*',
+        multiLine: true,
+      );
+
+      if (existingGetterPattern.hasMatch(body)) {
+        body = body.replaceFirst(existingGetterPattern, getterBlock);
+        continue;
+      }
+
+      body += getterBlock;
+    }
+
+    return body;
+  });
+}
+
+String _ensureGetterOverrides(
+  String content,
+  String className,
+  Iterable<dynamic> getterNames,
+) {
+  return _rewriteClassBody(content, className, (classBody) {
+    var body = classBody;
+
+    for (final nameValue in getterNames) {
+      final name = nameValue.toString();
+      final withOverride = RegExp(
+        r'@override\s+Color\s+get\s+' + name + r'\s*=>',
+        multiLine: true,
+      );
+      if (withOverride.hasMatch(body)) {
+        continue;
+      }
+
+      final withoutOverride = RegExp(
+        r'(^[ \t]*)Color\s+get\s+' + name + r'\s*=>',
+        multiLine: true,
+      );
+      body = body.replaceFirstMapped(withoutOverride, (match) {
+        final indent = match.group(1) ?? '  ';
+        return '${indent}@override\n${indent}Color get $name =>';
+      });
+    }
+
+    return body;
+  });
+}
+
+String _ensureMethodOverrides(
+  String content,
+  String className,
+  Iterable<dynamic> methodNames,
+  String returnType,
+) {
+  return _rewriteClassBody(content, className, (classBody) {
+    var body = classBody;
+
+    for (final nameValue in methodNames) {
+      final name = nameValue.toString();
+      final withOverride = RegExp(
+        r'@override\s+' + returnType + r'\s+' + name + r'\s*\(context\)\s*\{',
+        multiLine: true,
+      );
+      if (withOverride.hasMatch(body)) {
+        continue;
+      }
+
+      final withoutOverride = RegExp(
+        r'(^[ \t]*)' + returnType + r'\s+' + name + r'\s*\(context\)\s*\{',
+        multiLine: true,
+      );
+      body = body.replaceFirstMapped(withoutOverride, (match) {
+        final indent = match.group(1) ?? '  ';
+        return '${indent}@override\n${indent}$returnType $name(context) {';
+      });
+    }
+
+    return body;
+  });
+}
+
+String _rewriteClassBody(
+  String content,
+  String className,
+  String Function(String classBody) rewrite,
 ) {
   final classMatch = RegExp(
     r'class\s+' + className + r'\s+extends\s+\w+\s*\{',
@@ -418,26 +536,9 @@ String _ensureColorOverrides(
   }
 
   final classBody = content.substring(openBraceIndex + 1, closeBraceIndex);
-  final additions = StringBuffer();
+  final newBody = rewrite(classBody);
 
-  for (final entry in colors.entries) {
-    final key = entry.key;
-    if (classBody.contains('Color get $key')) {
-      continue;
-    }
-    final value = entry.value.toString().substring(1);
-    additions.writeln('');
-    additions.writeln('  @override');
-    additions.writeln('  Color get $key => const Color(0xff$value);');
-  }
-
-  if (additions.isEmpty) {
-    return content;
-  }
-
-  return content.substring(0, closeBraceIndex) +
-      additions.toString() +
-      content.substring(closeBraceIndex);
+  return content.substring(0, openBraceIndex + 1) + newBody + content.substring(closeBraceIndex);
 }
 
 String _ensureClass(String content, String className, String extendsName) {
@@ -599,13 +700,11 @@ ${themeMapEntries.join('\n')}
           ? ColorScheme.dark(
               primary: colors.primary,
               surface: colors.surface,
-              background: colors.background,
               error: colors.error,
             )
           : ColorScheme.light(
               primary: colors.primary,
               surface: colors.surface,
-              background: colors.background,
               error: colors.error,
             ),
       extensions: [
