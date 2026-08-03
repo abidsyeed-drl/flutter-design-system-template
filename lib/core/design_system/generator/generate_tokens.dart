@@ -10,8 +10,12 @@ void main() {
   generateRadius(data);
   generateTypography(data);
   generateDimensions(data);
-  updateTokenFiles();
+  updateTokenWrappers(data);
   updateTokensBarrel();
+  updateAppThemeExtension(data);
+  updateAppTheme(data);
+  updateContextExtension();
+  ensureResponsiveFiles();
 
   print('All tokens generated');
 }
@@ -23,38 +27,82 @@ Map<String, dynamic> _map(dynamic value, String message) {
   throw StateError(message);
 }
 
+List<MapEntry<String, dynamic>> _orderedEntries(Map<String, dynamic> map) {
+  return map.entries.toList(growable: false);
+}
+
+String _pascalCase(String value) {
+  final parts = value.split(RegExp(r'[^A-Za-z0-9]+')).where((part) => part.isNotEmpty);
+  return parts
+      .map((part) => part[0].toUpperCase() + part.substring(1))
+      .join();
+}
+
+String _camelCase(String value) {
+  final pascal = _pascalCase(value);
+  if (pascal.isEmpty) {
+    return value;
+  }
+  return pascal[0].toLowerCase() + pascal.substring(1);
+}
+
+String _themeClassName(String themeName) => 'Generated${_pascalCase(themeName)}ColorTokens';
+
+String _themeBaseClassName() => 'GeneratedThemeColorTokens';
+
 // ---------------- COLORS ----------------
 
 void generateColors(Map<String, dynamic> data) {
   final themes = _map(data['themes'], 'Missing "themes" in tokens.json');
-  final lightTheme = _map(themes['light'], 'Missing "themes.light" in tokens.json');
-  final darkTheme = _map(themes['dark'], 'Missing "themes.dark" in tokens.json');
-  final light = _map(lightTheme['colors'], 'Missing "themes.light.colors" in tokens.json');
-  final dark = _map(darkTheme['colors'], 'Missing "themes.dark.colors" in tokens.json');
+  final themeEntries = _orderedEntries(themes);
+  if (themeEntries.isEmpty) {
+    throw StateError('tokens.json must define at least one theme');
+  }
 
-  final output = '''
-import 'package:flutter/material.dart';
+  final allColorKeys = <String>{};
+  for (final themeEntry in themeEntries) {
+    final theme = _map(themeEntry.value, 'Invalid theme definition for "${themeEntry.key}"');
+    final colors = _map(theme['colors'], 'Missing "themes.${themeEntry.key}.colors" in tokens.json');
+    allColorKeys.addAll(colors.keys.cast<String>());
+  }
 
-${generateColorClass('GeneratedLightColorTokens', light)}
+  final sortedColorKeys = allColorKeys.toList();
 
-${generateColorClass('GeneratedDarkColorTokens', dark)}
-''';
-
-  writeFile('generated_color_tokens.dart', output);
-}
-
-String generateColorClass(String name, Map<String, dynamic> values) {
   final buffer = StringBuffer();
-
-  buffer.writeln('class $name {');
-  buffer.writeln('  const $name();');
-
-  values.forEach((key, value) {
-    buffer.writeln('  Color get $key => const Color(0xff${value.toString().substring(1)});');
-  });
-
+  buffer.writeln("import 'package:flutter/material.dart';");
+  buffer.writeln();
+  buffer.writeln('abstract class ${_themeBaseClassName()} {');
+  buffer.writeln('  const ${_themeBaseClassName()}();');
+  for (final key in sortedColorKeys) {
+    buffer.writeln('  Color get $key;');
+  }
   buffer.writeln('}');
-  return buffer.toString();
+  buffer.writeln();
+
+  for (final themeEntry in themeEntries) {
+    final themeName = themeEntry.key;
+    final colors = _map(
+      _map(themeEntry.value, 'Invalid theme definition for "$themeName"')['colors'],
+      'Missing "themes.$themeName.colors" in tokens.json',
+    );
+    final className = _themeClassName(themeName);
+    buffer.writeln('class $className extends ${_themeBaseClassName()} {');
+    buffer.writeln('  const $className();');
+    for (final key in sortedColorKeys) {
+      final value = colors[key];
+      if (value == null) {
+        throw StateError('Missing "themes.$themeName.colors.$key" in tokens.json');
+      }
+      buffer.writeln('  @override');
+      buffer.writeln('  Color get $key => const Color(0xff${value.toString().substring(1)});');
+    }
+    buffer.writeln('}');
+    if (themeEntry != themeEntries.last) {
+      buffer.writeln();
+    }
+  }
+
+  writeFile('generated_color_tokens.dart', buffer.toString());
 }
 
 // ---------------- SPACING ----------------
@@ -80,8 +128,9 @@ ${generateResponsiveDouble(spacing)}
 String generateResponsiveDouble(Map<String, dynamic> values) {
   final buffer = StringBuffer();
 
-  values.forEach((key, value) {
-    final token = _map(value, 'Invalid responsive token for "$key"');
+  for (final entry in values.entries) {
+    final key = entry.key;
+    final token = _map(entry.value, 'Invalid responsive token for "$key"');
     buffer.writeln('''
   double $key(context) {
     return ResponsiveValue<double>(
@@ -91,7 +140,7 @@ String generateResponsiveDouble(Map<String, dynamic> values) {
     ).resolve(context).r;
   }
 ''');
-  });
+  }
 
   return buffer.toString();
 }
@@ -141,8 +190,9 @@ ${generateTextStyles(typography)}
 String generateTextStyles(Map<String, dynamic> values) {
   final buffer = StringBuffer();
 
-  values.forEach((name, value) {
-    final token = _map(value, 'Invalid typography token for "$name"');
+  for (final entry in values.entries) {
+    final name = entry.key;
+    final token = _map(entry.value, 'Invalid typography token for "$name"');
     final size = _map(token['size'], 'Missing typography size for "$name"');
     final colorName = token['color'] as String?;
 
@@ -163,7 +213,7 @@ String generateTextStyles(Map<String, dynamic> values) {
     );
   }
 ''');
-  });
+  }
 
   return buffer.toString();
 }
@@ -191,8 +241,9 @@ ${generateDimensionsCode(dimensions)}
 String generateDimensionsCode(Map<String, dynamic> values) {
   final buffer = StringBuffer();
 
-  values.forEach((name, value) {
-    final token = _map(value, 'Invalid dimension token for "$name"');
+  for (final entry in values.entries) {
+    final name = entry.key;
+    final token = _map(entry.value, 'Invalid dimension token for "$name"');
     final type = token['type'] as String?;
 
     final unit = switch (type) {
@@ -210,18 +261,28 @@ String generateDimensionsCode(Map<String, dynamic> values) {
     ).resolve(context)$unit;
   }
 ''');
-  });
+  }
 
   return buffer.toString();
 }
 
-void updateTokenFiles() {
+// ---------------- WRAPPERS ----------------
+
+void updateTokenWrappers(Map<String, dynamic> data) {
   final configs = {
     'color_tokens.dart': {
       'className': 'ColorTokens',
-      'extends': 'GeneratedLightColorTokens',
-      'imports': ['../generated/generated_color_tokens.dart'],
-      'dark': true,
+      'extends': _themeClassName('light'),
+      'imports': [
+        '../generated/generated_color_tokens.dart',
+        'package:flutter/material.dart',
+      ],
+      'extraClasses': [
+        {
+          'className': 'DarkColorTokens',
+          'extends': 'ColorTokens',
+        },
+      ],
     },
     'spacing_tokens.dart': {
       'className': 'SpacingTokens',
@@ -245,21 +306,21 @@ void updateTokenFiles() {
     },
   };
 
-  configs.forEach((fileName, config) {
+  for (final entry in configs.entries) {
+    final fileName = entry.key;
+    final config = entry.value as Map<String, dynamic>;
     final file = File('lib/core/design_system/tokens/$fileName');
     final imports = (config['imports'] as List).cast<String>();
     final className = config['className'] as String;
     final extendsName = config['extends'] as String;
+    final extraClasses = (config['extraClasses'] as List?)?.cast<Map<String, dynamic>>() ?? const [];
 
     String content;
 
     if (file.existsSync()) {
       content = file.readAsStringSync();
     } else {
-      content = 'class $className {\n  const $className();\n}\n';
-      if (config['dark'] == true) {
-        content += '\nclass DarkColorTokens {\n  const DarkColorTokens();\n}\n';
-      }
+      content = '';
     }
 
     for (final importLine in imports) {
@@ -269,28 +330,96 @@ void updateTokenFiles() {
       }
     }
 
-    final classPattern = RegExp(r'class\s+' + className + r'(?:\s+extends\s+\w+)?');
-    final classReplacement = 'class $className extends $extendsName';
+    content = _ensureClass(content, className, extendsName);
 
-    if (classPattern.hasMatch(content)) {
-      content = content.replaceFirst(classPattern, classReplacement);
-    } else {
-      if (!content.endsWith('\n')) {
-        content += '\n';
-      }
-      content += '\n$classReplacement {\n  const $className();\n}\n';
+    for (final extraClass in extraClasses) {
+      final extraName = extraClass['className'] as String;
+      final extraExtends = extraClass['extends'] as String;
+      content = _ensureClass(content, extraName, extraExtends);
     }
 
-    if (config['dark'] == true && !content.contains('class DarkColorTokens')) {
-      if (!content.endsWith('\n')) {
-        content += '\n';
-      }
-      content +=
-          '\nclass DarkColorTokens extends GeneratedDarkColorTokens {\n  const DarkColorTokens();\n}\n';
+    if (fileName == 'color_tokens.dart') {
+      final themes = _map(data['themes'], 'Missing "themes" in tokens.json');
+      final darkTheme = _map(themes['dark'], 'Missing "themes.dark" in tokens.json');
+      final darkColors = _map(
+        darkTheme['colors'],
+        'Missing "themes.dark.colors" in tokens.json',
+      );
+      content = _ensureDarkColorOverrides(content, darkColors);
     }
 
     file.writeAsStringSync(content);
-  });
+  }
+}
+
+String _ensureDarkColorOverrides(String content, Map<String, dynamic> darkColors) {
+  final classMatch = RegExp(
+    r'class\s+DarkColorTokens\s+extends\s+\w+\s*\{',
+  ).firstMatch(content);
+
+  if (classMatch == null) {
+    return content;
+  }
+
+  final openBraceIndex = classMatch.end - 1;
+  int depth = 0;
+  int closeBraceIndex = -1;
+
+  for (int i = openBraceIndex; i < content.length; i++) {
+    final char = content[i];
+    if (char == '{') {
+      depth++;
+    } else if (char == '}') {
+      depth--;
+      if (depth == 0) {
+        closeBraceIndex = i;
+        break;
+      }
+    }
+  }
+
+  if (closeBraceIndex == -1) {
+    return content;
+  }
+
+  final classBody = content.substring(openBraceIndex + 1, closeBraceIndex);
+  final additions = StringBuffer();
+
+  for (final entry in darkColors.entries) {
+    final key = entry.key;
+    if (classBody.contains('Color get $key')) {
+      continue;
+    }
+    final value = entry.value.toString().substring(1);
+    additions.writeln('');
+    additions.writeln('  @override');
+    additions.writeln('  Color get $key => const Color(0xff$value);');
+  }
+
+  if (additions.isEmpty) {
+    return content;
+  }
+
+  return content.substring(0, closeBraceIndex) + additions.toString() + content.substring(closeBraceIndex);
+}
+
+String _ensureClass(String content, String className, String extendsName) {
+  final classPattern = RegExp(r'class\s+' + className + r'(?:\s+extends\s+\w+)?');
+  final classReplacement = 'class $className extends $extendsName';
+
+  if (classPattern.hasMatch(content)) {
+    return content.replaceFirst(classPattern, classReplacement);
+  }
+
+  final buffer = StringBuffer(content);
+  if (buffer.isNotEmpty && !buffer.toString().endsWith('\n')) {
+    buffer.writeln();
+  }
+  buffer.writeln();
+  buffer.writeln('$classReplacement {');
+  buffer.writeln('  const $className();');
+  buffer.writeln('}');
+  return buffer.toString();
 }
 
 void updateTokensBarrel() {
@@ -303,13 +432,7 @@ void updateTokensBarrel() {
     'typography_tokens.dart',
   ];
 
-  String content;
-
-  if (file.existsSync()) {
-    content = file.readAsStringSync();
-  } else {
-    content = '';
-  }
+  String content = file.existsSync() ? file.readAsStringSync() : '';
 
   for (final exportLine in exports) {
     final statement = "export '$exportLine';";
@@ -318,6 +441,278 @@ void updateTokensBarrel() {
         content += '\n';
       }
       content = '$statement\n$content';
+    }
+  }
+
+  file.writeAsStringSync(content);
+}
+
+// ---------------- THEME FILES ----------------
+
+void updateAppThemeExtension(Map<String, dynamic> data) {
+  final output = '''
+import 'package:flutter/material.dart';
+
+import '../tokens/tokens.dart';
+
+class AppThemeExtension extends ThemeExtension<AppThemeExtension> {
+  final ColorTokens colors;
+  final SpacingTokens spacing;
+  final RadiusTokens radius;
+  final TypographyTokens typography;
+  final DimensionTokens dimensions;
+
+  const AppThemeExtension({
+    required this.colors,
+    required this.spacing,
+    required this.radius,
+    required this.typography,
+    required this.dimensions,
+  });
+
+  @override
+  AppThemeExtension copyWith({
+    ColorTokens? colors,
+    SpacingTokens? spacing,
+    RadiusTokens? radius,
+    TypographyTokens? typography,
+    DimensionTokens? dimensions,
+  }) {
+    return AppThemeExtension(
+      colors: colors ?? this.colors,
+      spacing: spacing ?? this.spacing,
+      radius: radius ?? this.radius,
+      typography: typography ?? this.typography,
+      dimensions: dimensions ?? this.dimensions,
+    );
+  }
+
+  @override
+  AppThemeExtension lerp(
+    covariant ThemeExtension<AppThemeExtension>? other,
+    double t,
+  ) {
+    if (other is! AppThemeExtension) {
+      return this;
+    }
+
+    return t < 0.5 ? this : other;
+  }
+}
+''';
+
+  writeIfChanged('lib/core/design_system/theme/app_theme_extension.dart', output);
+}
+
+void updateAppTheme(Map<String, dynamic> data) {
+  final themes = _map(data['themes'], 'Missing "themes" in tokens.json');
+  final themeEntries = _orderedEntries(themes);
+  if (themeEntries.isEmpty) {
+    throw StateError('tokens.json must define at least one theme');
+  }
+
+  final themeFields = <String>[];
+  final themeMapEntries = <String>[];
+
+  for (final themeEntry in themeEntries) {
+    final themeName = themeEntry.key;
+    final fieldName = _camelCase(themeName);
+    final className = themeName.toLowerCase().contains('dark')
+        ? 'DarkColorTokens'
+        : 'ColorTokens';
+    final brightness = themeName.toLowerCase().contains('dark') ? 'Brightness.dark' : 'Brightness.light';
+
+    themeFields.add('''
+  static final ThemeData $fieldName = _buildTheme(
+    colors: const $className(),
+    brightness: $brightness,
+  );
+''');
+
+    themeMapEntries.add("    '$themeName': $fieldName,");
+  }
+
+  final output = '''
+import 'package:flutter/material.dart';
+
+import '../tokens/tokens.dart';
+import 'app_theme_extension.dart';
+
+class AppTheme {
+  static const SpacingTokens spacing = SpacingTokens();
+  static const RadiusTokens radius = RadiusTokens();
+  static const TypographyTokens typography = TypographyTokens();
+  static const DimensionTokens dimensions = DimensionTokens();
+
+${themeFields.join('\n')}
+  static final Map<String, ThemeData> themes = {
+${themeMapEntries.join('\n')}
+  };
+
+  static ThemeData theme(String themeName) => themes[themeName] ?? themes.values.first;
+
+  static ThemeData _buildTheme({
+    required ColorTokens colors,
+    required Brightness brightness,
+  }) {
+    return ThemeData(
+      useMaterial3: true,
+      brightness: brightness,
+      scaffoldBackgroundColor: colors.background,
+      colorScheme: brightness == Brightness.dark
+          ? ColorScheme.dark(
+              primary: colors.primary,
+              surface: colors.surface,
+              background: colors.background,
+              error: colors.error,
+            )
+          : ColorScheme.light(
+              primary: colors.primary,
+              surface: colors.surface,
+              background: colors.background,
+              error: colors.error,
+            ),
+      extensions: [
+        AppThemeExtension(
+          colors: colors,
+          spacing: spacing,
+          radius: radius,
+          typography: typography,
+          dimensions: dimensions,
+        ),
+      ],
+    );
+  }
+}
+''';
+
+  writeIfChanged('lib/core/design_system/theme/app_theme.dart', output);
+}
+
+void updateContextExtension() {
+  final output = '''
+import 'package:flutter/material.dart';
+
+import '../theme/app_theme_extension.dart';
+import '../tokens/color_tokens.dart';
+
+extension ContextExtension on BuildContext {
+  AppThemeExtension get appTheme => Theme.of(this).extension<AppThemeExtension>()!;
+
+  ColorTokens get colors => appTheme.colors;
+
+  SpaceExtension get space => SpaceExtension(this);
+
+  RadiusExtension get radius => RadiusExtension(this);
+
+  TypographyExtension get typo => TypographyExtension(this);
+
+  DimensionExtension get dimensions => DimensionExtension(this);
+}
+
+class SpaceExtension {
+  final BuildContext context;
+
+  SpaceExtension(this.context);
+
+  double get sm => context.appTheme.spacing.sm(context);
+
+  double get md => context.appTheme.spacing.md(context);
+
+  double get lg => context.appTheme.spacing.lg(context);
+}
+
+class RadiusExtension {
+  final BuildContext context;
+
+  RadiusExtension(this.context);
+
+  double get md => context.appTheme.radius.md(context);
+}
+
+class TypographyExtension {
+  final BuildContext context;
+
+  TypographyExtension(this.context);
+
+  TextStyle get title => context.appTheme.typography.title(context);
+
+  TextStyle get body => context.appTheme.typography.body(context);
+}
+
+class DimensionExtension {
+  final BuildContext context;
+
+  DimensionExtension(this.context);
+
+  double get buttonHeight => context.appTheme.dimensions.buttonHeight(context);
+
+  double get icon => context.appTheme.dimensions.icon(context);
+
+  double get avatar => context.appTheme.dimensions.avatar(context);
+
+  double get imageWidth => context.appTheme.dimensions.imageWidth(context);
+
+  double get imageHeight => context.appTheme.dimensions.imageHeight(context);
+}
+''';
+
+  writeIfChanged('lib/core/design_system/extensions/context_extension.dart', output);
+}
+
+// ---------------- RESPONSIVE ----------------
+
+void ensureResponsiveFiles() {
+  writeIfChanged('lib/core/design_system/responsive/responsive.dart', '''
+import 'package:flutter/widgets.dart';
+
+class Responsive {
+  static bool isMobile(BuildContext context) => MediaQuery.sizeOf(context).width < 600;
+
+  static bool isTablet(BuildContext context) {
+    final width = MediaQuery.sizeOf(context).width;
+    return width >= 600 && width < 1200;
+  }
+
+  static bool isDesktop(BuildContext context) => MediaQuery.sizeOf(context).width >= 1200;
+}
+''');
+
+  writeIfChanged('lib/core/design_system/responsive/responsive_value.dart', '''
+import 'package:flutter/widgets.dart';
+
+class ResponsiveValue<T> {
+  final T mobile;
+  final T tablet;
+  final T desktop;
+
+  const ResponsiveValue({
+    required this.mobile,
+    required this.tablet,
+    required this.desktop,
+  });
+
+  T resolve(BuildContext context) {
+    final width = MediaQuery.sizeOf(context).width;
+
+    if (width < 600) return mobile;
+    if (width < 1200) return tablet;
+    return desktop;
+  }
+}
+''');
+}
+
+// ---------------- FILE HELPERS ----------------
+
+void writeIfChanged(String path, String content) {
+  final file = File(path);
+  file.parent.createSync(recursive: true);
+
+  if (file.existsSync()) {
+    final existing = file.readAsStringSync();
+    if (existing == content) {
+      return;
     }
   }
 
