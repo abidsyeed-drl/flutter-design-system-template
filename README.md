@@ -12,6 +12,8 @@ Change values in [tokens.json](lib/core/design_system/generator/tokens.json), ru
 dart run lib/core/design_system/generator/generate_tokens.dart
 ```
 
+The generator now validates token schema before writing files. Invalid tokens fail fast with a clear `StateError`.
+
 ## What The Generator Owns
 
 - Generated token files under [lib/core/design_system/generated](lib/core/design_system/generated)
@@ -50,3 +52,29 @@ The app currently uses a selectable brand theme with system dark-mode support in
 - Phase 1 workflow is complete for local development: edit [tokens.json](lib/core/design_system/generator/tokens.json), run the generate command, and consume tokens in app UI.
 - Project is intentionally app-first right now (not packaged yet).
 - Next phase focuses on reliability and automation (schema validation, tests, and Figma export integration).
+
+## Schema Validation Rules
+
+- Required sections: `themes`, `spacing`, `radius`, `typography`, `dimensions`
+- `themes` must include `light`
+- Theme color values must be in `#RRGGBB` format
+- Every theme must use the same color keys as `light`
+- Responsive values (`mobile`, `tablet`, `desktop`) must be numeric
+- `dimensions.*.type` must be one of: `width`, `height`, `radius`
+- Typography color references must exist in `themes.light.colors`
+
+## Test Commands
+
+Run schema regression tests:
+
+```bash
+flutter test test/generator/schema_validation_test.dart
+```
+
+Run all tests:
+
+```bash
+flutter test
+```
+
+Fixture files for invalid token inputs live under [test/fixtures](test/fixtures).
