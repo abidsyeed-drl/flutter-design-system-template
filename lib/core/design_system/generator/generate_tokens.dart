@@ -33,9 +33,7 @@ List<MapEntry<String, dynamic>> _orderedEntries(Map<String, dynamic> map) {
 
 String _pascalCase(String value) {
   final parts = value.split(RegExp(r'[^A-Za-z0-9]+')).where((part) => part.isNotEmpty);
-  return parts
-      .map((part) => part[0].toUpperCase() + part.substring(1))
-      .join();
+  return parts.map((part) => part[0].toUpperCase() + part.substring(1)).join();
 }
 
 String _camelCase(String value) {
@@ -50,6 +48,13 @@ String _themeClassName(String themeName) => 'Generated${_pascalCase(themeName)}C
 
 String _themeBaseClassName() => 'GeneratedThemeColorTokens';
 
+String _tokenThemeClassName(String themeName) {
+  if (themeName.toLowerCase() == 'light') {
+    return 'ColorTokens';
+  }
+  return '${_pascalCase(themeName)}ColorTokens';
+}
+
 // ---------------- COLORS ----------------
 
 void generateColors(Map<String, dynamic> data) {
@@ -62,7 +67,8 @@ void generateColors(Map<String, dynamic> data) {
   final allColorKeys = <String>{};
   for (final themeEntry in themeEntries) {
     final theme = _map(themeEntry.value, 'Invalid theme definition for "${themeEntry.key}"');
-    final colors = _map(theme['colors'], 'Missing "themes.${themeEntry.key}.colors" in tokens.json');
+    final colors =
+        _map(theme['colors'], 'Missing "themes.${themeEntry.key}.colors" in tokens.json');
     allColorKeys.addAll(colors.keys.cast<String>());
   }
 
@@ -269,6 +275,32 @@ String generateDimensionsCode(Map<String, dynamic> values) {
 // ---------------- WRAPPERS ----------------
 
 void updateTokenWrappers(Map<String, dynamic> data) {
+  final themes = _map(data['themes'], 'Missing "themes" in tokens.json');
+  final themeEntries = _orderedEntries(themes);
+  if (themeEntries.isEmpty) {
+    throw StateError('tokens.json must define at least one theme');
+  }
+
+  final lightThemeExists = themeEntries.any(
+    (entry) => entry.key.toLowerCase() == 'light',
+  );
+  if (!lightThemeExists) {
+    throw StateError('tokens.json must define a "light" theme for ColorTokens');
+  }
+
+  final colorExtraClasses = <Map<String, dynamic>>[];
+  for (final themeEntry in themeEntries) {
+    final themeName = themeEntry.key;
+    if (themeName.toLowerCase() == 'light') {
+      continue;
+    }
+    colorExtraClasses.add({
+      'className': _tokenThemeClassName(themeName),
+      'extends': 'ColorTokens',
+      'themeKey': themeName,
+    });
+  }
+
   final configs = {
     'color_tokens.dart': {
       'className': 'ColorTokens',
@@ -277,12 +309,7 @@ void updateTokenWrappers(Map<String, dynamic> data) {
         '../generated/generated_color_tokens.dart',
         'package:flutter/material.dart',
       ],
-      'extraClasses': [
-        {
-          'className': 'DarkColorTokens',
-          'extends': 'ColorTokens',
-        },
-      ],
+      'extraClasses': colorExtraClasses,
     },
     'spacing_tokens.dart': {
       'className': 'SpacingTokens',
@@ -313,7 +340,8 @@ void updateTokenWrappers(Map<String, dynamic> data) {
     final imports = (config['imports'] as List).cast<String>();
     final className = config['className'] as String;
     final extendsName = config['extends'] as String;
-    final extraClasses = (config['extraClasses'] as List?)?.cast<Map<String, dynamic>>() ?? const [];
+    final extraClasses =
+        (config['extraClasses'] as List?)?.cast<Map<String, dynamic>>() ?? const [];
 
     String content;
 
@@ -339,22 +367,29 @@ void updateTokenWrappers(Map<String, dynamic> data) {
     }
 
     if (fileName == 'color_tokens.dart') {
-      final themes = _map(data['themes'], 'Missing "themes" in tokens.json');
-      final darkTheme = _map(themes['dark'], 'Missing "themes.dark" in tokens.json');
-      final darkColors = _map(
-        darkTheme['colors'],
-        'Missing "themes.dark.colors" in tokens.json',
-      );
-      content = _ensureDarkColorOverrides(content, darkColors);
+      for (final extraClass in extraClasses) {
+        final themeKey = extraClass['themeKey'] as String?;
+        final classForTheme = extraClass['className'] as String;
+        if (themeKey == null) {
+          continue;
+        }
+        final theme = _map(themes[themeKey], 'Missing "themes.$themeKey" in tokens.json');
+        final colors = _map(theme['colors'], 'Missing "themes.$themeKey.colors" in tokens.json');
+        content = _ensureColorOverrides(content, classForTheme, colors);
+      }
     }
 
     file.writeAsStringSync(content);
   }
 }
 
-String _ensureDarkColorOverrides(String content, Map<String, dynamic> darkColors) {
+String _ensureColorOverrides(
+  String content,
+  String className,
+  Map<String, dynamic> colors,
+) {
   final classMatch = RegExp(
-    r'class\s+DarkColorTokens\s+extends\s+\w+\s*\{',
+    r'class\s+' + className + r'\s+extends\s+\w+\s*\{',
   ).firstMatch(content);
 
   if (classMatch == null) {
@@ -385,7 +420,7 @@ String _ensureDarkColorOverrides(String content, Map<String, dynamic> darkColors
   final classBody = content.substring(openBraceIndex + 1, closeBraceIndex);
   final additions = StringBuffer();
 
-  for (final entry in darkColors.entries) {
+  for (final entry in colors.entries) {
     final key = entry.key;
     if (classBody.contains('Color get $key')) {
       continue;
@@ -400,7 +435,9 @@ String _ensureDarkColorOverrides(String content, Map<String, dynamic> darkColors
     return content;
   }
 
-  return content.substring(0, closeBraceIndex) + additions.toString() + content.substring(closeBraceIndex);
+  return content.substring(0, closeBraceIndex) +
+      additions.toString() +
+      content.substring(closeBraceIndex);
 }
 
 String _ensureClass(String content, String className, String extendsName) {
@@ -517,10 +554,9 @@ void updateAppTheme(Map<String, dynamic> data) {
   for (final themeEntry in themeEntries) {
     final themeName = themeEntry.key;
     final fieldName = _camelCase(themeName);
-    final className = themeName.toLowerCase().contains('dark')
-        ? 'DarkColorTokens'
-        : 'ColorTokens';
-    final brightness = themeName.toLowerCase().contains('dark') ? 'Brightness.dark' : 'Brightness.light';
+    final className = _tokenThemeClassName(themeName);
+    final brightness =
+        themeName.toLowerCase().contains('dark') ? 'Brightness.dark' : 'Brightness.light';
 
     themeFields.add('''
   static final ThemeData $fieldName = _buildTheme(
