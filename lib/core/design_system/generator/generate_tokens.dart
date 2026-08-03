@@ -5,6 +5,8 @@ void main() {
   final file = File('lib/core/design_system/generator/tokens.json');
   final data = jsonDecode(file.readAsStringSync()) as Map<String, dynamic>;
 
+  validateTokensSchema(data);
+
   generateColors(data);
   generateSpacing(data);
   generateRadius(data);
@@ -56,6 +58,181 @@ String _tokenThemeClassName(String themeName) {
 }
 
 String _tokenThemeBaseClassName() => 'ColorTokensBase';
+
+final RegExp _hexColorRegex = RegExp(r'^#[0-9A-Fa-f]{6}$');
+final RegExp _dartIdentifierRegex = RegExp(r'^[A-Za-z_][A-Za-z0-9_]*$');
+
+void validateTokensSchema(Map<String, dynamic> data) {
+  const requiredTopLevel = ['themes', 'spacing', 'radius', 'typography', 'dimensions'];
+  for (final key in requiredTopLevel) {
+    if (!data.containsKey(key)) {
+      throw StateError('Missing "$key" in tokens.json');
+    }
+  }
+
+  final themes = _map(data['themes'], 'Missing "themes" in tokens.json');
+  if (themes.isEmpty) {
+    throw StateError('"themes" must define at least one theme');
+  }
+  if (!themes.containsKey('light')) {
+    throw StateError('"themes" must include a "light" theme');
+  }
+
+  final lightTheme = _map(themes['light'], 'Invalid theme definition for "light"');
+  final lightColors = _map(
+    lightTheme['colors'],
+    'Missing "themes.light.colors" in tokens.json',
+  );
+  if (lightColors.isEmpty) {
+    throw StateError('"themes.light.colors" must not be empty');
+  }
+
+  final baselineColorKeys = <String>{};
+  for (final entry in lightColors.entries) {
+    final key = entry.key;
+    _validateTokenName('themes.light.colors', key);
+    _validateHexColor(entry.value, 'themes.light.colors.$key');
+    baselineColorKeys.add(key);
+  }
+
+  for (final themeEntry in _orderedEntries(themes)) {
+    final themeName = themeEntry.key;
+    final pascal = _pascalCase(themeName);
+    if (pascal.isEmpty || !_dartIdentifierRegex.hasMatch(pascal)) {
+      throw StateError(
+        'Invalid theme key "$themeName". Theme keys must produce valid Dart identifiers.',
+      );
+    }
+
+    final theme = _map(themeEntry.value, 'Invalid theme definition for "$themeName"');
+    final colors = _map(
+      theme['colors'],
+      'Missing "themes.$themeName.colors" in tokens.json',
+    );
+
+    for (final colorEntry in colors.entries) {
+      final colorKey = colorEntry.key;
+      _validateTokenName('themes.$themeName.colors', colorKey);
+      _validateHexColor(colorEntry.value, 'themes.$themeName.colors.$colorKey');
+    }
+
+    final colorKeys = colors.keys.cast<String>().toSet();
+    final missingKeys = baselineColorKeys.difference(colorKeys);
+    final extraKeys = colorKeys.difference(baselineColorKeys);
+
+    if (missingKeys.isNotEmpty || extraKeys.isNotEmpty) {
+      throw StateError(
+        'Theme "$themeName" color keys must match "light" exactly. '
+        'Missing: ${missingKeys.join(', ')}. Extra: ${extraKeys.join(', ')}.',
+      );
+    }
+  }
+
+  _validateResponsiveSection(
+    _map(data['spacing'], 'Missing "spacing" in tokens.json'),
+    sectionName: 'spacing',
+  );
+  _validateResponsiveSection(
+    _map(data['radius'], 'Missing "radius" in tokens.json'),
+    sectionName: 'radius',
+  );
+  _validateResponsiveSection(
+    _map(data['dimensions'], 'Missing "dimensions" in tokens.json'),
+    sectionName: 'dimensions',
+    requireType: true,
+  );
+
+  _validateTypography(
+    _map(data['typography'], 'Missing "typography" in tokens.json'),
+    availableColorKeys: baselineColorKeys,
+  );
+}
+
+void _validateTokenName(String sectionPath, String key) {
+  if (!_dartIdentifierRegex.hasMatch(key)) {
+    throw StateError(
+        'Invalid token name "$sectionPath.$key". Use Dart-safe names like sm, md, bodyText.');
+  }
+}
+
+void _validateHexColor(dynamic value, String path) {
+  if (value is! String || !_hexColorRegex.hasMatch(value)) {
+    throw StateError('Invalid color at "$path": "$value". Expected format: #RRGGBB');
+  }
+}
+
+void _validateResponsiveSection(
+  Map<String, dynamic> section, {
+  required String sectionName,
+  bool requireType = false,
+}) {
+  if (section.isEmpty) {
+    throw StateError('"$sectionName" must not be empty');
+  }
+
+  for (final entry in section.entries) {
+    final tokenName = entry.key;
+    _validateTokenName(sectionName, tokenName);
+
+    final token = _map(entry.value, 'Invalid token "$sectionName.$tokenName"');
+    _requireNum(token['mobile'], '$sectionName.$tokenName.mobile');
+    _requireNum(token['tablet'], '$sectionName.$tokenName.tablet');
+    _requireNum(token['desktop'], '$sectionName.$tokenName.desktop');
+
+    if (requireType) {
+      final type = token['type'];
+      const allowed = {'width', 'height', 'radius'};
+      if (type is! String || !allowed.contains(type)) {
+        throw StateError(
+          'Invalid type at "$sectionName.$tokenName.type": "$type". Allowed: width, height, radius.',
+        );
+      }
+    }
+  }
+}
+
+void _validateTypography(
+  Map<String, dynamic> typography, {
+  required Set<String> availableColorKeys,
+}) {
+  if (typography.isEmpty) {
+    throw StateError('"typography" must not be empty');
+  }
+
+  for (final entry in typography.entries) {
+    final name = entry.key;
+    _validateTokenName('typography', name);
+    final token = _map(entry.value, 'Invalid typography token "typography.$name"');
+
+    final size = _map(token['size'], 'Missing "typography.$name.size"');
+    _requireNum(size['mobile'], 'typography.$name.size.mobile');
+    _requireNum(size['tablet'], 'typography.$name.size.tablet');
+    _requireNum(size['desktop'], 'typography.$name.size.desktop');
+
+    final weight = token['weight'];
+    if (weight is! num) {
+      throw StateError(
+          'Invalid weight at "typography.$name.weight": "$weight". Expected numeric value like 400 or 700.');
+    }
+
+    final color = token['color'];
+    if (color is! String || color.isEmpty) {
+      throw StateError('Invalid color reference at "typography.$name.color": "$color"');
+    }
+    if (!availableColorKeys.contains(color)) {
+      throw StateError(
+        'Unknown color reference at "typography.$name.color": "$color". '
+        'Add this key under themes.light.colors.',
+      );
+    }
+  }
+}
+
+void _requireNum(dynamic value, String path) {
+  if (value is! num) {
+    throw StateError('Invalid numeric value at "$path": "$value"');
+  }
+}
 
 // ---------------- COLORS ----------------
 
@@ -287,7 +464,7 @@ void updateTokenWrappers(Map<String, dynamic> data) {
     (entry) => entry.key.toLowerCase() == 'light',
   );
   if (!lightThemeExists) {
-    throw StateError('tokens.json must define a "light" theme for ColorTokens');
+    throw StateError('tokens.json must define a "light" theme for LightColorTokens');
   }
 
   final lightTheme = _map(themes['light'], 'Missing "themes.light" in tokens.json');
