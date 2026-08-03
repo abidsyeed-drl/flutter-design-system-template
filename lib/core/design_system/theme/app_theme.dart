@@ -11,6 +11,8 @@ class AppTheme {
     colorScheme: ColorScheme.light(
       primary: colors.primary,
       surface: colors.surface,
+      background: colors.background,
+      error: colors.error,
     ),
     extensions: [
       AppThemeExtension(

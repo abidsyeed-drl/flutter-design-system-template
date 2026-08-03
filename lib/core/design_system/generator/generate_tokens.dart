@@ -1,118 +1,96 @@
 import 'dart:convert';
 import 'dart:io';
 
-// ❯ dart run lib/core/design_system/generator/generate_tokens.dart
 void main() {
   final file = File('lib/core/design_system/generator/tokens.json');
-  final data = jsonDecode(file.readAsStringSync());
+  final data = jsonDecode(file.readAsStringSync()) as Map<String, dynamic>;
 
   generateColors(data);
-
   generateSpacing(data);
-
   generateRadius(data);
-
   generateTypography(data);
-
   generateDimensions(data);
-
   updateTokenFiles();
+  updateTokensBarrel();
 
-  print("All tokens generated");
+  print('All tokens generated');
+}
+
+Map<String, dynamic> _map(dynamic value, String message) {
+  if (value is Map) {
+    return Map<String, dynamic>.from(value);
+  }
+  throw StateError(message);
 }
 
 // ---------------- COLORS ----------------
 
-void generateColors(Map data) {
-  final light = data["themes"]["light"]["colors"];
+void generateColors(Map<String, dynamic> data) {
+  final themes = _map(data['themes'], 'Missing "themes" in tokens.json');
+  final lightTheme = _map(themes['light'], 'Missing "themes.light" in tokens.json');
+  final darkTheme = _map(themes['dark'], 'Missing "themes.dark" in tokens.json');
+  final light = _map(lightTheme['colors'], 'Missing "themes.light.colors" in tokens.json');
+  final dark = _map(darkTheme['colors'], 'Missing "themes.dark.colors" in tokens.json');
 
-  final dark = data["themes"]["dark"]["colors"];
-
-  final output = """
-
+  final output = '''
 import 'package:flutter/material.dart';
 
+${generateColorClass('GeneratedLightColorTokens', light)}
 
-${generateColorClass("GeneratedLightColorTokens", light)}
+${generateColorClass('GeneratedDarkColorTokens', dark)}
+''';
 
-
-
-${generateColorClass("GeneratedDarkColorTokens", dark)}
-
-""";
-
-  writeFile("generated_color_tokens.dart", output);
+  writeFile('generated_color_tokens.dart', output);
 }
 
-String generateColorClass(String name, Map values) {
+String generateColorClass(String name, Map<String, dynamic> values) {
   final buffer = StringBuffer();
 
-  buffer.writeln("class $name {");
-
-  buffer.writeln("const $name();");
+  buffer.writeln('class $name {');
+  buffer.writeln('  const $name();');
 
   values.forEach((key, value) {
-    buffer.writeln("""
-Color get $key =>
-const Color(0xff${value.substring(1)});
-""");
+    buffer.writeln('  Color get $key => const Color(0xff${value.toString().substring(1)});');
   });
 
-  buffer.writeln("}");
-
+  buffer.writeln('}');
   return buffer.toString();
 }
 
 // ---------------- SPACING ----------------
 
-void generateSpacing(Map data) {
-  final spacing = data["spacing"];
+void generateSpacing(Map<String, dynamic> data) {
+  final spacing = _map(data['spacing'], 'Missing "spacing" in tokens.json');
 
-  final output = """
-
+  final output = '''
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 
 import '../responsive/responsive_value.dart';
 
-
 class GeneratedSpacingTokens {
-
-
-const GeneratedSpacingTokens();
-
+  const GeneratedSpacingTokens();
 
 ${generateResponsiveDouble(spacing)}
+}
+''';
 
+  writeFile('generated_spacing_tokens.dart', output);
 }
 
-""";
-
-  writeFile("generated_spacing_tokens.dart", output);
-}
-
-String generateResponsiveDouble(Map values) {
+String generateResponsiveDouble(Map<String, dynamic> values) {
   final buffer = StringBuffer();
 
   values.forEach((key, value) {
-    buffer.writeln("""
-
-double $key(context){
-
-return ResponsiveValue<double>(
-
-mobile:${value["mobile"]},
-
-tablet:${value["tablet"]},
-
-desktop:${value["desktop"]}
-
-)
-.resolve(context)
-.r;
-
-}
-
-""");
+    final token = _map(value, 'Invalid responsive token for "$key"');
+    buffer.writeln('''
+  double $key(context) {
+    return ResponsiveValue<double>(
+      mobile: ${token['mobile']},
+      tablet: ${token['tablet']},
+      desktop: ${token['desktop']},
+    ).resolve(context).r;
+  }
+''');
   });
 
   return buffer.toString();
@@ -120,96 +98,71 @@ desktop:${value["desktop"]}
 
 // ---------------- RADIUS ----------------
 
-void generateRadius(Map data) {
-  final radius = data["radius"];
+void generateRadius(Map<String, dynamic> data) {
+  final radius = _map(data['radius'], 'Missing "radius" in tokens.json');
 
-  final output = """
-
+  final output = '''
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 
 import '../responsive/responsive_value.dart';
 
-
 class GeneratedRadiusTokens {
-
-
-const GeneratedRadiusTokens();
-
+  const GeneratedRadiusTokens();
 
 ${generateResponsiveDouble(radius)}
-
 }
+''';
 
-""";
-
-  writeFile("generated_radius_tokens.dart", output);
+  writeFile('generated_radius_tokens.dart', output);
 }
 
 // ---------------- TYPOGRAPHY ----------------
 
-void generateTypography(Map data) {
-  final typography = data["typography"];
+void generateTypography(Map<String, dynamic> data) {
+  final typography = _map(data['typography'], 'Missing "typography" in tokens.json');
 
-  final output = """
-
+  final output = '''
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 
 import '../responsive/responsive_value.dart';
-
+import '../theme/app_theme_extension.dart';
 
 class GeneratedTypographyTokens {
-
-
-const GeneratedTypographyTokens();
-
-
+  const GeneratedTypographyTokens();
 
 ${generateTextStyles(typography)}
+}
+''';
 
+  writeFile('generated_typography_tokens.dart', output);
 }
 
-""";
-
-  writeFile("generated_typography_tokens.dart", output);
-}
-
-String generateTextStyles(Map values) {
+String generateTextStyles(Map<String, dynamic> values) {
   final buffer = StringBuffer();
 
   values.forEach((name, value) {
-    buffer.writeln("""
+    final token = _map(value, 'Invalid typography token for "$name"');
+    final size = _map(token['size'], 'Missing typography size for "$name"');
+    final colorName = token['color'] as String?;
 
-TextStyle $name(context){
+    if (colorName == null) {
+      throw StateError('Missing typography color for "$name"');
+    }
 
-
-return TextStyle(
-
-fontSize:
-
-ResponsiveValue<double>(
-
-mobile:${value["size"]["mobile"]},
-
-tablet:${value["size"]["tablet"]},
-
-desktop:${value["size"]["desktop"]}
-
-)
-.resolve(context)
-.sp,
-
-
-fontWeight:
-FontWeight.w${value["weight"]},
-
-
-);
-
-}
-
-
-""");
+    buffer.writeln('''
+  TextStyle $name(context) {
+    return TextStyle(
+      fontSize: ResponsiveValue<double>(
+        mobile: ${size['mobile']},
+        tablet: ${size['tablet']},
+        desktop: ${size['desktop']},
+      ).resolve(context).sp,
+      fontWeight: FontWeight.w${token['weight']},
+      color: Theme.of(context).extension<AppThemeExtension>()!.colors.$colorName,
+    );
+  }
+''');
   });
 
   return buffer.toString();
@@ -217,70 +170,46 @@ FontWeight.w${value["weight"]},
 
 // ---------------- DIMENSIONS ----------------
 
-void generateDimensions(Map data) {
-  final dimensions = data["dimensions"];
+void generateDimensions(Map<String, dynamic> data) {
+  final dimensions = _map(data['dimensions'], 'Missing "dimensions" in tokens.json');
 
-  final output = """
-
+  final output = '''
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 
 import '../responsive/responsive_value.dart';
 
-
 class GeneratedDimensionTokens {
-
-
-const GeneratedDimensionTokens();
-
-
+  const GeneratedDimensionTokens();
 
 ${generateDimensionsCode(dimensions)}
+}
+''';
 
+  writeFile('generated_dimension_tokens.dart', output);
 }
 
-""";
-
-  writeFile("generated_dimension_tokens.dart", output);
-}
-
-String generateDimensionsCode(Map values) {
+String generateDimensionsCode(Map<String, dynamic> values) {
   final buffer = StringBuffer();
 
   values.forEach((name, value) {
-    String unit;
+    final token = _map(value, 'Invalid dimension token for "$name"');
+    final type = token['type'] as String?;
 
-    switch (value["type"]) {
-      case "width":
-        unit = ".w";
-        break;
+    final unit = switch (type) {
+      'width' => '.w',
+      'height' => '.h',
+      _ => '.r',
+    };
 
-      case "height":
-        unit = ".h";
-        break;
-
-      default:
-        unit = ".r";
-    }
-
-    buffer.writeln("""
-
-double $name(context){
-
-return ResponsiveValue<double>(
-
-mobile:${value["mobile"]},
-
-tablet:${value["tablet"]},
-
-desktop:${value["desktop"]}
-
-)
-.resolve(context)
-$unit;
-
-}
-
-""");
+    buffer.writeln('''
+  double $name(context) {
+    return ResponsiveValue<double>(
+      mobile: ${token['mobile']},
+      tablet: ${token['tablet']},
+      desktop: ${token['desktop']},
+    ).resolve(context)$unit;
+  }
+''');
   });
 
   return buffer.toString();
@@ -288,108 +217,120 @@ $unit;
 
 void updateTokenFiles() {
   final configs = {
-    "color_tokens.dart": {
-      "className": "ColorTokens",
-      "extends": "GeneratedLightColorTokens",
-      "dark": true,
-      "imports": [
-        "../generated/generated_color_tokens.dart",
-      ],
+    'color_tokens.dart': {
+      'className': 'ColorTokens',
+      'extends': 'GeneratedLightColorTokens',
+      'imports': ['../generated/generated_color_tokens.dart'],
+      'dark': true,
     },
-    "spacing_tokens.dart": {
-      "className": "SpacingTokens",
-      "extends": "GeneratedSpacingTokens",
-      "imports": [
-        "../generated/generated_spacing_tokens.dart",
-      ],
+    'spacing_tokens.dart': {
+      'className': 'SpacingTokens',
+      'extends': 'GeneratedSpacingTokens',
+      'imports': ['../generated/generated_spacing_tokens.dart'],
     },
-    "radius_tokens.dart": {
-      "className": "RadiusTokens",
-      "extends": "GeneratedRadiusTokens",
-      "imports": [
-        "../generated/generated_radius_tokens.dart",
-      ],
+    'radius_tokens.dart': {
+      'className': 'RadiusTokens',
+      'extends': 'GeneratedRadiusTokens',
+      'imports': ['../generated/generated_radius_tokens.dart'],
     },
-    "typography_tokens.dart": {
-      "className": "TypographyTokens",
-      "extends": "GeneratedTypographyTokens",
-      "imports": [
-        "../generated/generated_typography_tokens.dart",
-      ],
+    'typography_tokens.dart': {
+      'className': 'TypographyTokens',
+      'extends': 'GeneratedTypographyTokens',
+      'imports': ['../generated/generated_typography_tokens.dart'],
     },
-    "dimension_tokens.dart": {
-      "className": "DimensionTokens",
-      "extends": "GeneratedDimensionTokens",
-      "imports": [
-        "../generated/generated_dimension_tokens.dart",
-      ],
+    'dimension_tokens.dart': {
+      'className': 'DimensionTokens',
+      'extends': 'GeneratedDimensionTokens',
+      'imports': ['../generated/generated_dimension_tokens.dart'],
     },
   };
 
   configs.forEach((fileName, config) {
-    final path = 'lib/core/design_system/tokens/$fileName';
+    final file = File('lib/core/design_system/tokens/$fileName');
+    final imports = (config['imports'] as List).cast<String>();
+    final className = config['className'] as String;
+    final extendsName = config['extends'] as String;
 
-    final file = File(path);
+    String content;
 
-    if (!file.existsSync()) {
-      return;
+    if (file.existsSync()) {
+      content = file.readAsStringSync();
+    } else {
+      content = 'class $className {\n  const $className();\n}\n';
+      if (config['dark'] == true) {
+        content += '\nclass DarkColorTokens {\n  const DarkColorTokens();\n}\n';
+      }
     }
 
-    String content = file.readAsStringSync();
-
-    // add missing imports
-    final imports = config["imports"] as List<String>;
-
-    final importBlock = imports.map((e) => "import '$e';").join("\n");
-
-    if (!content.contains(importBlock)) {
-      content = "$importBlock\n\n$content";
+    for (final importLine in imports) {
+      final importStatement = "import '$importLine';";
+      if (!content.contains(importStatement)) {
+        content = '$importStatement\n$content';
+      }
     }
 
-    final String className = config["className"] as String;
+    final classPattern = RegExp(r'class\s+' + className + r'(?:\s+extends\s+\w+)?');
+    final classReplacement = 'class $className extends $extendsName';
 
-    final String extendsName = config["extends"] as String;
+    if (classPattern.hasMatch(content)) {
+      content = content.replaceFirst(classPattern, classReplacement);
+    } else {
+      if (!content.endsWith('\n')) {
+        content += '\n';
+      }
+      content += '\n$classReplacement {\n  const $className();\n}\n';
+    }
 
-    // update only class declaration
-    content = content.replaceFirst(
-      RegExp(
-        r'class\s+' + className!,
-      ),
-      'class $className extends $extendsName',
-    );
-
-    // add dark class if color token
-    if (config["dark"] == true && !content.contains("DarkColorTokens")) {
-      content += """
-
-
-
-class DarkColorTokens extends GeneratedDarkColorTokens {
-
-  const DarkColorTokens();
-
-}
-
-""";
+    if (config['dark'] == true && !content.contains('class DarkColorTokens')) {
+      if (!content.endsWith('\n')) {
+        content += '\n';
+      }
+      content +=
+          '\nclass DarkColorTokens extends GeneratedDarkColorTokens {\n  const DarkColorTokens();\n}\n';
     }
 
     file.writeAsStringSync(content);
   });
 }
 
-void writeFile(
-  String name,
-  String content,
-) {
+void updateTokensBarrel() {
+  final file = File('lib/core/design_system/tokens/tokens.dart');
+  final exports = [
+    'color_tokens.dart',
+    'dimension_tokens.dart',
+    'radius_tokens.dart',
+    'spacing_tokens.dart',
+    'typography_tokens.dart',
+  ];
+
+  String content;
+
+  if (file.existsSync()) {
+    content = file.readAsStringSync();
+  } else {
+    content = '';
+  }
+
+  for (final exportLine in exports) {
+    final statement = "export '$exportLine';";
+    if (!content.contains(statement)) {
+      if (content.isNotEmpty && !content.endsWith('\n')) {
+        content += '\n';
+      }
+      content = '$statement\n$content';
+    }
+  }
+
+  file.writeAsStringSync(content);
+}
+
+void writeFile(String name, String content) {
   final directory = Directory('lib/core/design_system/generated');
 
   if (!directory.existsSync()) {
-    directory.createSync(
-      recursive: true,
-    );
+    directory.createSync(recursive: true);
   }
 
   final file = File('${directory.path}/$name');
-
   file.writeAsStringSync(content);
 }
