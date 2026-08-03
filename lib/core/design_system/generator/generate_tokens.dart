@@ -443,7 +443,7 @@ String _ensureGetterOverrides(
       );
       body = body.replaceFirstMapped(withoutOverride, (match) {
         final indent = match.group(1) ?? '  ';
-        return '${indent}@override\n${indent}Color get $name =>';
+        return '$indent@override\n${indent}Color get $name =>';
       });
     }
 
@@ -476,7 +476,7 @@ String _ensureMethodOverrides(
       );
       body = body.replaceFirstMapped(withoutOverride, (match) {
         final indent = match.group(1) ?? '  ';
-        return '${indent}@override\n${indent}$returnType $name(context) {';
+        return '$indent@override\n$indent$returnType $name(context) {';
       });
     }
 
