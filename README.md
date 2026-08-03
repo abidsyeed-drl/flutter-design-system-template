@@ -38,9 +38,15 @@ dart run lib/core/design_system/generator/generate_tokens.dart
 - Theme keys are read from `themes` in [tokens.json](lib/core/design_system/generator/tokens.json).
 - For each key, generator creates:
 	- Generated color class (for source of truth)
-	- Token wrapper class named from key (`light -> ColorTokens`, `dark -> DarkColorTokens`, `aurora -> AuroraColorTokens`)
+	- Token wrapper class named from key (`light -> LightColorTokens`, `dark -> DarkColorTokens`, `aurora -> AuroraColorTokens`)
 	- AppTheme entry in `AppTheme.themes`
 
 ## App Wiring
 
 The app currently uses a selectable brand theme with system dark-mode support in [lib/main.dart](lib/main.dart).
+
+## Current Status
+
+- Phase 1 workflow is complete for local development: edit [tokens.json](lib/core/design_system/generator/tokens.json), run the generate command, and consume tokens in app UI.
+- Project is intentionally app-first right now (not packaged yet).
+- Next phase focuses on reliability and automation (schema validation, tests, and Figma export integration).
