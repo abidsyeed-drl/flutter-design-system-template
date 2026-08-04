@@ -1332,6 +1332,7 @@ void updateTokenWrappers(Map<String, dynamic> data) {
 
     if (fileName == 'color_tokens.dart') {
       content = _ensureGetterOverrides(content, 'LightColorTokens', lightColors.keys);
+      content = _removeStaleGetterOverrides(content, 'LightColorTokens', lightColors.keys);
 
       for (final extraClass in extraClasses) {
         final themeKey = extraClass['themeKey'] as String?;
@@ -1344,6 +1345,7 @@ void updateTokenWrappers(Map<String, dynamic> data) {
         // For non-light theme wrappers, do not auto-inject properties.
         // Only add @override when a getter already exists in that class.
         content = _ensureGetterOverrides(content, classForTheme, colors.keys);
+        content = _removeStaleGetterOverrides(content, classForTheme, colors.keys);
       }
     } else if (fileName == 'gradient_tokens.dart') {
       content = _ensureMethodOverrides(
@@ -1352,6 +1354,7 @@ void updateTokenWrappers(Map<String, dynamic> data) {
         lightGradients.keys,
         'Gradient',
       );
+      content = _removeStaleMethodOverrides(content, 'LightGradientTokens', lightGradients.keys);
 
       for (final extraClass in extraClasses) {
         final themeKey = extraClass['themeKey'] as String?;
@@ -1369,6 +1372,7 @@ void updateTokenWrappers(Map<String, dynamic> data) {
           gradients.keys,
           'Gradient',
         );
+        content = _removeStaleMethodOverrides(content, classForTheme, gradients.keys);
       }
     } else if (fileName == 'shadow_tokens.dart') {
       content = _ensureMethodOverrides(
@@ -1377,6 +1381,7 @@ void updateTokenWrappers(Map<String, dynamic> data) {
         lightShadows.keys,
         'List<BoxShadow>',
       );
+      content = _removeStaleMethodOverrides(content, 'LightShadowTokens', lightShadows.keys);
 
       for (final extraClass in extraClasses) {
         final themeKey = extraClass['themeKey'] as String?;
@@ -1394,23 +1399,29 @@ void updateTokenWrappers(Map<String, dynamic> data) {
           shadows.keys,
           'List<BoxShadow>',
         );
+        content = _removeStaleMethodOverrides(content, classForTheme, shadows.keys);
       }
     } else if (fileName == 'spacing_tokens.dart') {
       content = _ensureMethodOverrides(content, 'SpacingTokens', spacing.keys, 'double');
+      content = _removeStaleMethodOverrides(content, 'SpacingTokens', spacing.keys);
     } else if (fileName == 'elevation_tokens.dart') {
+      final allElevationNames = [...elevations.keys, ...elevationAliases.keys];
       content = _ensureMethodOverrides(
         content,
         'ElevationTokens',
-        [...elevations.keys, ...elevationAliases.keys],
+        allElevationNames,
         'double',
       );
+      content = _removeStaleMethodOverrides(content, 'ElevationTokens', allElevationNames);
     } else if (fileName == 'radius_tokens.dart') {
       content = _ensureMethodOverrides(content, 'RadiusTokens', radius.keys, 'double');
+      content = _removeStaleMethodOverrides(content, 'RadiusTokens', radius.keys);
     } else if (fileName == 'typography_tokens.dart') {
       content = _ensureMethodOverrides(content, 'TypographyTokens', typography.keys, 'TextStyle');
       content = _removeStaleMethodOverrides(content, 'TypographyTokens', typography.keys);
     } else if (fileName == 'dimension_tokens.dart') {
       content = _ensureMethodOverrides(content, 'DimensionTokens', dimensions.keys, 'double');
+      content = _removeStaleMethodOverrides(content, 'DimensionTokens', dimensions.keys);
     }
 
     file.writeAsStringSync(content);
@@ -1480,6 +1491,33 @@ String _ensureMethodOverrides(
     }
 
     return body;
+  });
+}
+
+String _removeStaleGetterOverrides(
+  String content,
+  String className,
+  Iterable<dynamic> validGetterNames,
+) {
+  final allowed = validGetterNames.map((e) => e.toString()).toSet();
+
+  return _rewriteClassBody(content, className, (classBody) {
+    final pattern = RegExp(
+      r'(^[ \t]*)@override\s*\n\1([A-Za-z0-9_<>,? ]+)\s+get\s+([A-Za-z_][A-Za-z0-9_]*)\s*=>',
+      multiLine: true,
+    );
+
+    return classBody.replaceAllMapped(pattern, (match) {
+      final indent = match.group(1) ?? '  ';
+      final returnType = (match.group(2) ?? '').trim();
+      final getterName = match.group(3) ?? '';
+
+      if (allowed.contains(getterName)) {
+        return match.group(0)!;
+      }
+
+      return '$indent$returnType get $getterName =>';
+    });
   });
 }
 
