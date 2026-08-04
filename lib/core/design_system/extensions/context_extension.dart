@@ -90,6 +90,16 @@ class TypographyExtension {
 
   TypographyExtension(this.context);
 
+  TextStyle get body => context.appTheme.typography.body(context);
+
+  TextStyle get bodyLarge => context.appTheme.typography.bodyLarge(context);
+
+  TextStyle get bodySmall => context.appTheme.typography.bodySmall(context);
+
+  TextStyle get button => context.appTheme.typography.button(context);
+
+  TextStyle get caption => context.appTheme.typography.caption(context);
+
   TextStyle get display => context.appTheme.typography.display(context);
 
   TextStyle get h1 => context.appTheme.typography.h1(context);
@@ -98,25 +108,17 @@ class TypographyExtension {
 
   TextStyle get h3 => context.appTheme.typography.h3(context);
 
-  TextStyle get subtitle => context.appTheme.typography.subtitle(context);
-
-  TextStyle get bodyLarge => context.appTheme.typography.bodyLarge(context);
-
-  TextStyle get body => context.appTheme.typography.body(context);
-
-  TextStyle get bodySmall => context.appTheme.typography.bodySmall(context);
-
-  TextStyle get caption => context.appTheme.typography.caption(context);
-
-  TextStyle get overline => context.appTheme.typography.overline(context);
-
-  TextStyle get button => context.appTheme.typography.button(context);
-
   TextStyle get label => context.appTheme.typography.label(context);
 
   TextStyle get number => context.appTheme.typography.number(context);
 
   TextStyle get numberSmall => context.appTheme.typography.numberSmall(context);
+
+  TextStyle get overline => context.appTheme.typography.overline(context);
+
+  TextStyle get subtitle => context.appTheme.typography.subtitle(context);
+
+  TextStyle get title => context.appTheme.typography.title(context);
 
 }
 

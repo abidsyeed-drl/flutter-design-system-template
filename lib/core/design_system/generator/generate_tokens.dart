@@ -142,6 +142,20 @@ Map<String, String> _tokenMemberMap(Iterable<dynamic> keys, String sectionPath) 
   return result;
 }
 
+Set<String> _collectWrapperMethods(String path, String returnType) {
+  final file = File(path);
+  if (!file.existsSync()) {
+    return <String>{};
+  }
+
+  final content = file.readAsStringSync();
+  final regex = RegExp(
+    '\\b${RegExp.escape(returnType)}\\s+([A-Za-z_][A-Za-z0-9_]*)\\s*\\(\\s*context\\s*\\)',
+  );
+
+  return regex.allMatches(content).map((match) => match.group(1)).whereType<String>().toSet();
+}
+
 void validateTokensSchema(Map<String, dynamic> data) {
   const requiredTopLevel = [
     'themes',
@@ -2137,7 +2151,15 @@ void updateContextExtension(Map<String, dynamic> data) {
 
   final typographyGetterBuffer = StringBuffer();
   final typographyMemberMap = _tokenMemberMap(typography.keys, 'typography');
-  for (final typoName in typographyMemberMap.values) {
+  final typographyMethodNames = <String>{...typographyMemberMap.values};
+  final manualTypographyMethods = _collectWrapperMethods(
+    'lib/core/design_system/tokens/typography_tokens.dart',
+    'TextStyle',
+  );
+  typographyMethodNames.addAll(manualTypographyMethods);
+
+  final orderedTypographyMethods = typographyMethodNames.toList()..sort();
+  for (final typoName in orderedTypographyMethods) {
     typographyGetterBuffer.writeln(
       '  TextStyle get $typoName => context.appTheme.typography.$typoName(context);',
     );
