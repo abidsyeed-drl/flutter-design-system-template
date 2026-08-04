@@ -8,22 +8,26 @@ class AppTheme {
   static const RadiusTokens radius = RadiusTokens();
   static const TypographyTokens typography = TypographyTokens();
   static const DimensionTokens dimensions = DimensionTokens();
+  static const ElevationTokens elevations = ElevationTokens();
 
   static final ThemeData light = _buildTheme(
     colors: const LightColorTokens(),
     gradients: const LightGradientTokens(),
+    shadows: const LightShadowTokens(),
     brightness: Brightness.light,
   );
 
   static final ThemeData dark = _buildTheme(
     colors: const DarkColorTokens(),
     gradients: const DarkGradientTokens(),
+    shadows: const DarkShadowTokens(),
     brightness: Brightness.dark,
   );
 
   static final ThemeData aurora = _buildTheme(
     colors: const AuroraColorTokens(),
     gradients: const AuroraGradientTokens(),
+    shadows: const AuroraShadowTokens(),
     brightness: Brightness.light,
   );
 
@@ -38,6 +42,7 @@ class AppTheme {
   static ThemeData _buildTheme({
     required ColorTokensBase colors,
     required GradientTokensBase gradients,
+    required ShadowTokensBase shadows,
     required Brightness brightness,
   }) {
     return ThemeData(
@@ -59,10 +64,12 @@ class AppTheme {
         AppThemeExtension(
           colors: colors,
           gradients: gradients,
+          shadows: shadows,
           spacing: spacing,
           radius: radius,
           typography: typography,
           dimensions: dimensions,
+          elevations: elevations,
         ),
       ],
     );

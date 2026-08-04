@@ -89,6 +89,12 @@ const Map<String, String> _filesUnderTest = {
   'lib/core/design_system/generated/generated_spacing_tokens.dart': 'class GeneratedSpacingTokens',
   'lib/core/design_system/generated/generated_gradient_tokens.dart':
       'class GeneratedThemeGradientTokens',
+  'lib/core/design_system/generated/generated_shadow_tokens.dart':
+      'class GeneratedThemeShadowTokens',
+  'lib/core/design_system/generated/generated_elevation_tokens.dart':
+      'class GeneratedElevationTokens',
+  'lib/core/design_system/tokens/shadow_tokens.dart': 'class LightShadowTokens',
+  'lib/core/design_system/tokens/elevation_tokens.dart': 'class ElevationTokens',
   'lib/core/design_system/theme/app_theme_extension.dart': 'class AppThemeExtension',
   'lib/core/design_system/extensions/context_extension.dart':
       'extension ContextExtension on BuildContext',

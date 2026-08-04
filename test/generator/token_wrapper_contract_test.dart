@@ -75,4 +75,61 @@ void main() {
       contains('class GeneratedAuroraGradientTokens extends GeneratedThemeGradientTokens'),
     );
   });
+
+  test('shadow wrapper file keeps expected inheritance contract', () {
+    final file = File('lib/core/design_system/tokens/shadow_tokens.dart');
+    final content = file.readAsStringSync();
+
+    expect(
+      content,
+      contains(
+          'class LightShadowTokens extends GeneratedLightShadowTokens implements ShadowTokensBase'),
+    );
+    expect(
+      content,
+      contains(
+          'class DarkShadowTokens extends GeneratedDarkShadowTokens implements ShadowTokensBase'),
+    );
+    expect(
+      content,
+      contains(
+          'class AuroraShadowTokens extends GeneratedAuroraShadowTokens implements ShadowTokensBase'),
+    );
+  });
+
+  test('generated shadows file contains base class and one class per theme', () {
+    final file = File('lib/core/design_system/generated/generated_shadow_tokens.dart');
+    final content = file.readAsStringSync();
+
+    expect(content, contains('abstract class GeneratedThemeShadowTokens'));
+    expect(
+      content,
+      contains('class GeneratedLightShadowTokens extends GeneratedThemeShadowTokens'),
+    );
+    expect(
+      content,
+      contains('class GeneratedDarkShadowTokens extends GeneratedThemeShadowTokens'),
+    );
+    expect(
+      content,
+      contains('class GeneratedAuroraShadowTokens extends GeneratedThemeShadowTokens'),
+    );
+  });
+
+  test('elevation wrapper file keeps expected inheritance contract', () {
+    final file = File('lib/core/design_system/tokens/elevation_tokens.dart');
+    final content = file.readAsStringSync();
+
+    expect(content, contains('class ElevationTokens extends GeneratedElevationTokens'));
+  });
+
+  test('generated elevations file contains generated elevation class', () {
+    final file = File('lib/core/design_system/generated/generated_elevation_tokens.dart');
+    final content = file.readAsStringSync();
+
+    expect(content, contains('class GeneratedElevationTokens'));
+    expect(content, contains('double level1(context)'));
+    expect(content, contains('double level2(context)'));
+    expect(content, contains('double level3(context)'));
+  });
 }

@@ -12,6 +12,8 @@ void main() {
     late double radiusMd;
     late TextStyle title;
     late double buttonHeight;
+    late List<BoxShadow> cardShadow;
+    late double level2;
 
     await tester.pumpWidget(
       ScreenUtilInit(
@@ -27,6 +29,8 @@ void main() {
                 radiusMd = context.radius.md;
                 title = context.typo.title;
                 buttonHeight = context.dimensions.buttonHeight;
+                cardShadow = context.shadows.card;
+                level2 = context.elevation.level2;
                 return const SizedBox.shrink();
               },
             ),
@@ -41,6 +45,8 @@ void main() {
     expect(radiusMd, greaterThan(0));
     expect(title.fontSize, isNotNull);
     expect(buttonHeight, greaterThan(0));
+    expect(cardShadow, isNotEmpty);
+    expect(level2, greaterThan(0));
   });
 
   testWidgets('home screen renders with design-system themed app', (tester) async {

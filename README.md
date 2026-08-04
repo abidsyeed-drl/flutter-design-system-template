@@ -55,16 +55,21 @@ The app currently uses a selectable brand theme with system dark-mode support in
 
 ## Schema Validation Rules
 
-- Required sections: `themes`, `spacing`, `radius`, `typography`, `dimensions`
+- Required sections: `themes`, `spacing`, `radius`, `typography`, `dimensions`, `elevations`
 - `themes` must include `light`
 - Theme color values must be in `#RRGGBB` format
 - Every theme must use the same color keys as `light`
 - Responsive values (`mobile`, `tablet`, `desktop`) must be numeric
 - `dimensions.*.type` must be one of: `width`, `height`, `radius`
+- `elevations` values must define numeric `mobile`, `tablet`, `desktop`
 - Typography color references must exist in `themes.light.colors`
 - Optional per-theme `gradients` are supported
 - If gradients are present in `light`, all themes must define gradients with identical keys
 - Gradient types supported: `linear`, `radial`, `sweep`
+- Optional per-theme `shadows` are supported
+- If shadows are present in `light`, all themes must define shadows with identical keys
+- Each shadow token must define a non-empty `layers` array
+- Shadow layer `opacity` must be between `0` and `1` when provided
 
 ## Gradient Token Schema
 
@@ -110,6 +115,49 @@ Generated outputs include:
 - [lib/core/design_system/generated/generated_gradient_tokens.dart](lib/core/design_system/generated/generated_gradient_tokens.dart)
 - [lib/core/design_system/tokens/gradient_tokens.dart](lib/core/design_system/tokens/gradient_tokens.dart)
 - `context.gradients` access via [lib/core/design_system/extensions/context_extension.dart](lib/core/design_system/extensions/context_extension.dart)
+
+## Shadow And Elevation Token Schema
+
+Put shadows inside each theme, next to `colors` and `gradients`:
+
+```json
+{
+	"themes": {
+		"light": {
+			"colors": { "shadow": "#0F172A" },
+			"shadows": {
+				"card": {
+					"layers": [
+						{ "x": 0, "y": 4, "blur": 12, "spread": 0, "color": "shadow", "opacity": 0.12 }
+					]
+				}
+			}
+		}
+	}
+}
+```
+
+Define elevations at top-level (responsive numeric values):
+
+```json
+{
+	"elevations": {
+		"level1": { "mobile": 1, "tablet": 1, "desktop": 1 },
+		"level2": { "mobile": 2, "tablet": 2, "desktop": 2 },
+		"level3": { "mobile": 4, "tablet": 4, "desktop": 4 }
+	}
+}
+```
+
+Preferred approach: use color-key references in shadow layer `color` values (for example `shadow`, `overlay`) so shadow tones stay theme-aware.
+
+Generated outputs include:
+
+- [lib/core/design_system/generated/generated_shadow_tokens.dart](lib/core/design_system/generated/generated_shadow_tokens.dart)
+- [lib/core/design_system/generated/generated_elevation_tokens.dart](lib/core/design_system/generated/generated_elevation_tokens.dart)
+- [lib/core/design_system/tokens/shadow_tokens.dart](lib/core/design_system/tokens/shadow_tokens.dart)
+- [lib/core/design_system/tokens/elevation_tokens.dart](lib/core/design_system/tokens/elevation_tokens.dart)
+- `context.shadows` and `context.elevation` accessors via [lib/core/design_system/extensions/context_extension.dart](lib/core/design_system/extensions/context_extension.dart)
 
 ## Test Commands
 
@@ -237,13 +285,12 @@ So full automation usually looks like:
 
 Besides colors and gradients, common exports from Figma that are useful for Flutter:
 
-- Effects / shadows (single and layered shadows)
 - Opacity tokens
 - Blur tokens
 - Border width/style tokens
 - Motion tokens (duration, curve names)
-- Elevation aliases
+- Elevation aliases (semantic aliases mapped to base levels)
 - Breakpoints and layout grid tokens
 - Z-index/layer order tokens
 
-Current generator fully supports colors, gradients, spacing, radius, typography, and dimensions.
+Current generator fully supports colors, gradients, shadows, spacing, radius, typography, dimensions, and elevations.

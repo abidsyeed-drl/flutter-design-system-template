@@ -3,24 +3,28 @@
     "light": {
       "colors": {
         "primary": "#2563EB",
-        "background": "#FFFFFF"
+        "background": "#FFFFFF",
+        "shadow": "#0F172A"
       },
-      "gradients": {
-        "brand": {
-          "type": "mesh",
-          "colors": ["#2563EB", "#FFFFFF"]
+      "shadows": {
+        "card": {
+          "layers": [
+            { "x": 0, "y": 4, "blur": 12, "spread": 0, "color": "shadow", "opacity": 1.3 }
+          ]
         }
       }
     },
     "dark": {
       "colors": {
         "primary": "#60A5FA",
-        "background": "#111827"
+        "background": "#111827",
+        "shadow": "#000000"
       },
-      "gradients": {
-        "brand": {
-          "type": "mesh",
-          "colors": ["#60A5FA", "#111827"]
+      "shadows": {
+        "card": {
+          "layers": [
+            { "x": 0, "y": 4, "blur": 12, "spread": 0, "color": "shadow", "opacity": 0.2 }
+          ]
         }
       }
     }

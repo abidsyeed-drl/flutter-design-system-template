@@ -9,10 +9,12 @@ void main() {
 
   generateColors(data);
   generateGradients(data);
+  generateShadows(data);
   generateSpacing(data);
   generateRadius(data);
   generateTypography(data);
   generateDimensions(data);
+  generateElevations(data);
   updateTokenWrappers(data);
   updateTokensBarrel();
   updateAppThemeExtension(data);
@@ -74,11 +76,31 @@ String _tokenGradientThemeClassName(String themeName) {
 
 String _tokenGradientThemeBaseClassName() => 'GradientTokensBase';
 
+String _themeShadowClassName(String themeName) => 'Generated${_pascalCase(themeName)}ShadowTokens';
+
+String _themeShadowBaseClassName() => 'GeneratedThemeShadowTokens';
+
+String _tokenShadowThemeClassName(String themeName) {
+  if (themeName.toLowerCase() == 'light') {
+    return 'LightShadowTokens';
+  }
+  return '${_pascalCase(themeName)}ShadowTokens';
+}
+
+String _tokenShadowThemeBaseClassName() => 'ShadowTokensBase';
+
 final RegExp _hexColorRegex = RegExp(r'^#[0-9A-Fa-f]{6}$');
 final RegExp _dartIdentifierRegex = RegExp(r'^[A-Za-z_][A-Za-z0-9_]*$');
 
 void validateTokensSchema(Map<String, dynamic> data) {
-  const requiredTopLevel = ['themes', 'spacing', 'radius', 'typography', 'dimensions'];
+  const requiredTopLevel = [
+    'themes',
+    'spacing',
+    'radius',
+    'typography',
+    'dimensions',
+    'elevations',
+  ];
   for (final key in requiredTopLevel) {
     if (!data.containsKey(key)) {
       throw StateError('Missing "$key" in tokens.json');
@@ -144,6 +166,7 @@ void validateTokensSchema(Map<String, dynamic> data) {
   }
 
   _validateThemeGradients(themes);
+  _validateThemeShadows(themes);
 
   _validateResponsiveSection(
     _map(data['spacing'], 'Missing "spacing" in tokens.json'),
@@ -157,6 +180,10 @@ void validateTokensSchema(Map<String, dynamic> data) {
     _map(data['dimensions'], 'Missing "dimensions" in tokens.json'),
     sectionName: 'dimensions',
     requireType: true,
+  );
+  _validateResponsiveSection(
+    _map(data['elevations'], 'Missing "elevations" in tokens.json'),
+    sectionName: 'elevations',
   );
 
   _validateTypography(
@@ -330,6 +357,122 @@ void _validateThemeGradients(Map<String, dynamic> themes) {
         'themes.$themeName.gradients.$gradientKey',
         availableColorKeys: themeColorKeys,
       );
+    }
+  }
+}
+
+void _validateThemeShadows(Map<String, dynamic> themes) {
+  final lightTheme = _map(themes['light'], 'Invalid theme definition for "light"');
+  final hasLightShadows = lightTheme.containsKey('shadows');
+  final themeEntries = _orderedEntries(themes);
+
+  if (!hasLightShadows) {
+    for (final entry in themeEntries) {
+      final theme = _map(entry.value, 'Invalid theme definition for "${entry.key}"');
+      if (theme.containsKey('shadows')) {
+        throw StateError(
+          'Theme "${entry.key}" defines shadows but "light" does not. '
+          'Either define shadows for all themes or remove shadows entirely.',
+        );
+      }
+    }
+    return;
+  }
+
+  final lightShadows = _map(
+    lightTheme['shadows'],
+    'Invalid "themes.light.shadows" in tokens.json',
+  );
+  if (lightShadows.isEmpty) {
+    throw StateError('"themes.light.shadows" must not be empty when provided');
+  }
+
+  final lightColorKeys = _map(
+    lightTheme['colors'],
+    'Missing "themes.light.colors" in tokens.json',
+  ).keys.cast<String>().toSet();
+
+  final baselineKeys = <String>{};
+  for (final entry in lightShadows.entries) {
+    final key = entry.key;
+    _validateTokenName('themes.light.shadows', key);
+    _validateShadowToken(
+      entry.value,
+      'themes.light.shadows.$key',
+      availableColorKeys: lightColorKeys,
+    );
+    baselineKeys.add(key);
+  }
+
+  for (final themeEntry in themeEntries) {
+    final themeName = themeEntry.key;
+    final theme = _map(themeEntry.value, 'Invalid theme definition for "$themeName"');
+    if (!theme.containsKey('shadows')) {
+      throw StateError(
+        'Theme "$themeName" is missing "shadows". '
+        'All themes must define shadows when light has shadows.',
+      );
+    }
+
+    final shadows = _map(
+      theme['shadows'],
+      'Invalid "themes.$themeName.shadows" in tokens.json',
+    );
+    final themeColorKeys = _map(
+      theme['colors'],
+      'Missing "themes.$themeName.colors" in tokens.json',
+    ).keys.cast<String>().toSet();
+
+    final keys = shadows.keys.cast<String>().toSet();
+    final missingKeys = baselineKeys.difference(keys);
+    final extraKeys = keys.difference(baselineKeys);
+    if (missingKeys.isNotEmpty || extraKeys.isNotEmpty) {
+      throw StateError(
+        'Theme "$themeName" shadow keys must match "light" exactly. '
+        'Missing: ${missingKeys.join(', ')}. Extra: ${extraKeys.join(', ')}.',
+      );
+    }
+
+    for (final shadowEntry in shadows.entries) {
+      final shadowKey = shadowEntry.key;
+      _validateTokenName('themes.$themeName.shadows', shadowKey);
+      _validateShadowToken(
+        shadowEntry.value,
+        'themes.$themeName.shadows.$shadowKey',
+        availableColorKeys: themeColorKeys,
+      );
+    }
+  }
+}
+
+void _validateShadowToken(
+  dynamic value,
+  String path, {
+  required Set<String> availableColorKeys,
+}) {
+  final token = _map(value, 'Invalid shadow token at "$path"');
+  final layers = token['layers'];
+  if (layers is! List || layers.isEmpty) {
+    throw StateError('Shadow "$path" must define a non-empty "layers" list.');
+  }
+
+  for (var i = 0; i < layers.length; i++) {
+    final layer = _map(layers[i], 'Invalid shadow layer at "$path.layers[$i]"');
+    _requireNum(layer['x'], '$path.layers[$i].x');
+    _requireNum(layer['y'], '$path.layers[$i].y');
+    _requireNum(layer['blur'], '$path.layers[$i].blur');
+    _requireNum(layer['spread'], '$path.layers[$i].spread');
+    _validateGradientColorValue(
+      layer['color'],
+      '$path.layers[$i].color',
+      availableColorKeys: availableColorKeys,
+    );
+
+    final opacity = layer['opacity'];
+    if (opacity != null) {
+      if (opacity is! num || opacity < 0 || opacity > 1) {
+        throw StateError('Shadow opacity "$path.layers[$i].opacity" must be between 0 and 1.');
+      }
     }
   }
 }
@@ -649,6 +792,118 @@ String _alignmentExpression(String value) {
   }
 }
 
+// ---------------- SHADOWS ----------------
+
+void generateShadows(Map<String, dynamic> data) {
+  final themes = _map(data['themes'], 'Missing "themes" in tokens.json');
+  final themeEntries = _orderedEntries(themes);
+  if (themeEntries.isEmpty) {
+    throw StateError('tokens.json must define at least one theme');
+  }
+
+  final lightTheme = _map(themes['light'], 'Missing "themes.light" in tokens.json');
+  final hasShadows = lightTheme.containsKey('shadows');
+  final shadowKeys = <String>[];
+
+  if (hasShadows) {
+    final lightShadows = _map(
+      lightTheme['shadows'],
+      'Missing "themes.light.shadows" in tokens.json',
+    );
+    shadowKeys.addAll(lightShadows.keys.cast<String>());
+  }
+
+  final buffer = StringBuffer();
+  buffer.writeln("import 'package:flutter/material.dart';");
+  buffer.writeln();
+  buffer.writeln("import '../theme/app_theme_extension.dart';");
+  buffer.writeln();
+  buffer.writeln('abstract class ${_themeShadowBaseClassName()} {');
+  buffer.writeln('  const ${_themeShadowBaseClassName()}();');
+  for (final key in shadowKeys) {
+    buffer.writeln('  List<BoxShadow> $key(context);');
+  }
+  buffer.writeln('}');
+  buffer.writeln();
+
+  for (final themeEntry in themeEntries) {
+    final themeName = themeEntry.key;
+    final theme = _map(themeEntry.value, 'Invalid theme definition for "$themeName"');
+    final shadows = hasShadows
+        ? _map(theme['shadows'], 'Missing "themes.$themeName.shadows" in tokens.json')
+        : <String, dynamic>{};
+
+    final className = _themeShadowClassName(themeName);
+    buffer.writeln('class $className extends ${_themeShadowBaseClassName()} {');
+    buffer.writeln('  const $className();');
+
+    for (final key in shadowKeys) {
+      final token = _map(
+        shadows[key],
+        'Missing "themes.$themeName.shadows.$key" in tokens.json',
+      );
+      final layers = token['layers'] as List;
+      buffer.writeln('  @override');
+      buffer.writeln('  List<BoxShadow> $key(context) {');
+      buffer.writeln('    return ${_shadowLayersExpression(layers)};');
+      buffer.writeln('  }');
+    }
+
+    buffer.writeln('}');
+    if (themeEntry != themeEntries.last) {
+      buffer.writeln();
+    }
+  }
+
+  writeFile('generated_shadow_tokens.dart', buffer.toString());
+}
+
+String _shadowLayersExpression(List<dynamic> layers) {
+  final values = layers
+      .map((layer) => _shadowLayerExpression(_map(layer, 'Invalid shadow layer in tokens.json')))
+      .join(', ');
+  return '[$values]';
+}
+
+String _shadowLayerExpression(Map<String, dynamic> layer) {
+  final x = (layer['x'] as num).toDouble();
+  final y = (layer['y'] as num).toDouble();
+  final blur = (layer['blur'] as num).toDouble();
+  final spread = (layer['spread'] as num).toDouble();
+  final opacity = layer['opacity'] as num?;
+  final colorExpr = _shadowColorExpression(layer['color'], opacity);
+
+  return 'BoxShadow(color: $colorExpr, offset: Offset($x, $y), blurRadius: $blur, spreadRadius: $spread)';
+}
+
+String _shadowColorExpression(dynamic value, num? opacity) {
+  final base = _gradientColorExpression(value);
+  if (opacity == null) {
+    return base;
+  }
+  return '$base.withValues(alpha: ${opacity.toDouble()})';
+}
+
+// ---------------- ELEVATIONS ----------------
+
+void generateElevations(Map<String, dynamic> data) {
+  final elevations = _map(data['elevations'], 'Missing "elevations" in tokens.json');
+
+  final output = '''
+import 'package:flutter_screenutil/flutter_screenutil.dart';
+
+import '../responsive/responsive_value.dart';
+
+class GeneratedElevationTokens {
+  const GeneratedElevationTokens();
+
+${generateResponsiveDouble(elevations)}
+}
+''';
+
+  writeFile('generated_elevation_tokens.dart', output);
+}
+
 // ---------------- SPACING ----------------
 
 void generateSpacing(Map<String, dynamic> data) {
@@ -834,14 +1089,19 @@ void updateTokenWrappers(Map<String, dynamic> data) {
   final lightGradients = lightTheme.containsKey('gradients')
       ? _map(lightTheme['gradients'], 'Invalid "themes.light.gradients" in tokens.json')
       : <String, dynamic>{};
+  final lightShadows = lightTheme.containsKey('shadows')
+      ? _map(lightTheme['shadows'], 'Invalid "themes.light.shadows" in tokens.json')
+      : <String, dynamic>{};
 
   final spacing = _map(data['spacing'], 'Missing "spacing" in tokens.json');
+  final elevations = _map(data['elevations'], 'Missing "elevations" in tokens.json');
   final radius = _map(data['radius'], 'Missing "radius" in tokens.json');
   final typography = _map(data['typography'], 'Missing "typography" in tokens.json');
   final dimensions = _map(data['dimensions'], 'Missing "dimensions" in tokens.json');
 
   final colorExtraClasses = <Map<String, dynamic>>[];
   final gradientExtraClasses = <Map<String, dynamic>>[];
+  final shadowExtraClasses = <Map<String, dynamic>>[];
   for (final themeEntry in themeEntries) {
     final themeName = themeEntry.key;
     if (themeName.toLowerCase() == 'light') {
@@ -855,6 +1115,11 @@ void updateTokenWrappers(Map<String, dynamic> data) {
     gradientExtraClasses.add({
       'className': _tokenGradientThemeClassName(themeName),
       'extends': _themeGradientClassName(themeName),
+      'themeKey': themeName,
+    });
+    shadowExtraClasses.add({
+      'className': _tokenShadowThemeClassName(themeName),
+      'extends': _themeShadowClassName(themeName),
       'themeKey': themeName,
     });
   }
@@ -882,6 +1147,14 @@ void updateTokenWrappers(Map<String, dynamic> data) {
       ],
       'extraClasses': gradientExtraClasses,
     },
+    'shadow_tokens.dart': {
+      'className': 'LightShadowTokens',
+      'extends': _themeShadowClassName('light'),
+      'imports': [
+        '../generated/generated_shadow_tokens.dart',
+      ],
+      'extraClasses': shadowExtraClasses,
+    },
     'radius_tokens.dart': {
       'className': 'RadiusTokens',
       'extends': 'GeneratedRadiusTokens',
@@ -896,6 +1169,11 @@ void updateTokenWrappers(Map<String, dynamic> data) {
       'className': 'DimensionTokens',
       'extends': 'GeneratedDimensionTokens',
       'imports': ['../generated/generated_dimension_tokens.dart'],
+    },
+    'elevation_tokens.dart': {
+      'className': 'ElevationTokens',
+      'extends': 'GeneratedElevationTokens',
+      'imports': ['../generated/generated_elevation_tokens.dart'],
     },
   };
 
@@ -921,6 +1199,8 @@ void updateTokenWrappers(Map<String, dynamic> data) {
       content = _cleanupCorruptColorBlock(content);
     } else if (fileName == 'gradient_tokens.dart') {
       content = content.replaceAll("import 'package:flutter/material.dart';\n", '');
+    } else if (fileName == 'shadow_tokens.dart') {
+      content = content.replaceAll("import 'package:flutter/material.dart';\n", '');
     }
 
     for (final importLine in imports) {
@@ -937,6 +1217,9 @@ void updateTokenWrappers(Map<String, dynamic> data) {
     } else if (fileName == 'gradient_tokens.dart') {
       content = _ensureGradientBaseClass(content);
       content = _ensureImplements(content, className, _tokenGradientThemeBaseClassName());
+    } else if (fileName == 'shadow_tokens.dart') {
+      content = _ensureShadowBaseClass(content);
+      content = _ensureImplements(content, className, _tokenShadowThemeBaseClassName());
     }
 
     for (final extraClass in extraClasses) {
@@ -947,6 +1230,8 @@ void updateTokenWrappers(Map<String, dynamic> data) {
         content = _ensureImplements(content, extraName, _tokenThemeBaseClassName());
       } else if (fileName == 'gradient_tokens.dart') {
         content = _ensureImplements(content, extraName, _tokenGradientThemeBaseClassName());
+      } else if (fileName == 'shadow_tokens.dart') {
+        content = _ensureImplements(content, extraName, _tokenShadowThemeBaseClassName());
       }
     }
 
@@ -990,8 +1275,35 @@ void updateTokenWrappers(Map<String, dynamic> data) {
           'Gradient',
         );
       }
+    } else if (fileName == 'shadow_tokens.dart') {
+      content = _ensureMethodOverrides(
+        content,
+        'LightShadowTokens',
+        lightShadows.keys,
+        'List<BoxShadow>',
+      );
+
+      for (final extraClass in extraClasses) {
+        final themeKey = extraClass['themeKey'] as String?;
+        final classForTheme = extraClass['className'] as String;
+        if (themeKey == null) {
+          continue;
+        }
+        final theme = _map(themes[themeKey], 'Missing "themes.$themeKey" in tokens.json');
+        final shadows = theme.containsKey('shadows')
+            ? _map(theme['shadows'], 'Missing "themes.$themeKey.shadows" in tokens.json')
+            : <String, dynamic>{};
+        content = _ensureMethodOverrides(
+          content,
+          classForTheme,
+          shadows.keys,
+          'List<BoxShadow>',
+        );
+      }
     } else if (fileName == 'spacing_tokens.dart') {
       content = _ensureMethodOverrides(content, 'SpacingTokens', spacing.keys, 'double');
+    } else if (fileName == 'elevation_tokens.dart') {
+      content = _ensureMethodOverrides(content, 'ElevationTokens', elevations.keys, 'double');
     } else if (fileName == 'radius_tokens.dart') {
       content = _ensureMethodOverrides(content, 'RadiusTokens', radius.keys, 'double');
     } else if (fileName == 'typography_tokens.dart') {
@@ -1157,6 +1469,30 @@ String _ensureGradientBaseClass(String content) {
   return '$importsBlock\n${classBlock.toString()}$remaining';
 }
 
+String _ensureShadowBaseClass(String content) {
+  const decl = 'abstract class ShadowTokensBase extends GeneratedThemeShadowTokens';
+  if (content.contains(decl)) {
+    return content;
+  }
+
+  final classBlock = StringBuffer()
+    ..writeln(
+        'abstract class ${_tokenShadowThemeBaseClassName()} extends GeneratedThemeShadowTokens {')
+    ..writeln('  const ${_tokenShadowThemeBaseClassName()}();')
+    ..writeln('}')
+    ..writeln();
+
+  final importRegex = RegExp(r'^(import\s+[\s\S]*?;\n)+', multiLine: true);
+  final match = importRegex.firstMatch(content);
+  if (match == null) {
+    return '${classBlock.toString()}$content';
+  }
+
+  final importsBlock = content.substring(0, match.end);
+  final remaining = content.substring(match.end);
+  return '$importsBlock\n${classBlock.toString()}$remaining';
+}
+
 String _ensureImplements(String content, String className, String interfaceName) {
   final pattern = RegExp(
     r'class\s+' + className + r'\b\s+extends\s+(\w+)(?:\s+implements\s+([^\{]+))?\s*\{',
@@ -1217,8 +1553,10 @@ void updateTokensBarrel() {
   final exports = [
     'color_tokens.dart',
     'dimension_tokens.dart',
+    'elevation_tokens.dart',
     'gradient_tokens.dart',
     'radius_tokens.dart',
+    'shadow_tokens.dart',
     'spacing_tokens.dart',
     'typography_tokens.dart',
   ];
@@ -1249,36 +1587,44 @@ import '../tokens/tokens.dart';
 class AppThemeExtension extends ThemeExtension<AppThemeExtension> {
   final ${_tokenThemeBaseClassName()} colors;
   final ${_tokenGradientThemeBaseClassName()} gradients;
+  final ${_tokenShadowThemeBaseClassName()} shadows;
   final SpacingTokens spacing;
   final RadiusTokens radius;
   final TypographyTokens typography;
   final DimensionTokens dimensions;
+  final ElevationTokens elevations;
 
   const AppThemeExtension({
     required this.colors,
     required this.gradients,
+    required this.shadows,
     required this.spacing,
     required this.radius,
     required this.typography,
     required this.dimensions,
+    required this.elevations,
   });
 
   @override
   AppThemeExtension copyWith({
     ${_tokenThemeBaseClassName()}? colors,
     ${_tokenGradientThemeBaseClassName()}? gradients,
+    ${_tokenShadowThemeBaseClassName()}? shadows,
     SpacingTokens? spacing,
     RadiusTokens? radius,
     TypographyTokens? typography,
     DimensionTokens? dimensions,
+    ElevationTokens? elevations,
   }) {
     return AppThemeExtension(
       colors: colors ?? this.colors,
       gradients: gradients ?? this.gradients,
+      shadows: shadows ?? this.shadows,
       spacing: spacing ?? this.spacing,
       radius: radius ?? this.radius,
       typography: typography ?? this.typography,
       dimensions: dimensions ?? this.dimensions,
+      elevations: elevations ?? this.elevations,
     );
   }
 
@@ -1320,6 +1666,7 @@ void updateAppTheme(Map<String, dynamic> data) {
   static final ThemeData $fieldName = _buildTheme(
     colors: const $className(),
     gradients: const ${_tokenGradientThemeClassName(themeName)}(),
+    shadows: const ${_tokenShadowThemeClassName(themeName)}(),
     brightness: $brightness,
   );
 ''');
@@ -1338,6 +1685,7 @@ class AppTheme {
   static const RadiusTokens radius = RadiusTokens();
   static const TypographyTokens typography = TypographyTokens();
   static const DimensionTokens dimensions = DimensionTokens();
+  static const ElevationTokens elevations = ElevationTokens();
 
 ${themeFields.join('\n')}
   static final Map<String, ThemeData> themes = {
@@ -1349,6 +1697,7 @@ ${themeMapEntries.join('\n')}
   static ThemeData _buildTheme({
     required ${_tokenThemeBaseClassName()} colors,
     required ${_tokenGradientThemeBaseClassName()} gradients,
+    required ${_tokenShadowThemeBaseClassName()} shadows,
     required Brightness brightness,
   }) {
     return ThemeData(
@@ -1370,10 +1719,12 @@ ${themeMapEntries.join('\n')}
         AppThemeExtension(
           colors: colors,
           gradients: gradients,
+          shadows: shadows,
           spacing: spacing,
           radius: radius,
           typography: typography,
           dimensions: dimensions,
+          elevations: elevations,
         ),
       ],
     );
@@ -1386,9 +1737,13 @@ ${themeMapEntries.join('\n')}
 
 void updateContextExtension(Map<String, dynamic> data) {
   final themes = _map(data['themes'], 'Missing "themes" in tokens.json');
+  final elevations = _map(data['elevations'], 'Missing "elevations" in tokens.json');
   final lightTheme = _map(themes['light'], 'Missing "themes.light" in tokens.json');
   final lightGradients = lightTheme.containsKey('gradients')
       ? _map(lightTheme['gradients'], 'Invalid "themes.light.gradients" in tokens.json')
+      : <String, dynamic>{};
+  final lightShadows = lightTheme.containsKey('shadows')
+      ? _map(lightTheme['shadows'], 'Invalid "themes.light.shadows" in tokens.json')
       : <String, dynamic>{};
   final gradientGetterBuffer = StringBuffer();
   for (final gradientName in lightGradients.keys) {
@@ -1396,6 +1751,20 @@ void updateContextExtension(Map<String, dynamic> data) {
       '  Gradient get $gradientName => context.appTheme.gradients.$gradientName(context);',
     );
     gradientGetterBuffer.writeln();
+  }
+  final shadowGetterBuffer = StringBuffer();
+  for (final shadowName in lightShadows.keys) {
+    shadowGetterBuffer.writeln(
+      '  List<BoxShadow> get $shadowName => context.appTheme.shadows.$shadowName(context);',
+    );
+    shadowGetterBuffer.writeln();
+  }
+  final elevationGetterBuffer = StringBuffer();
+  for (final elevationName in elevations.keys) {
+    elevationGetterBuffer.writeln(
+      '  double get $elevationName => context.appTheme.elevations.$elevationName(context);',
+    );
+    elevationGetterBuffer.writeln();
   }
 
   final output = '''
@@ -1411,6 +1780,8 @@ extension ContextExtension on BuildContext {
 
   GradientExtension get gradients => GradientExtension(this);
 
+  ShadowExtension get shadows => ShadowExtension(this);
+
   SpaceExtension get space => SpaceExtension(this);
 
   RadiusExtension get radius => RadiusExtension(this);
@@ -1418,6 +1789,8 @@ extension ContextExtension on BuildContext {
   TypographyExtension get typo => TypographyExtension(this);
 
   DimensionExtension get dimensions => DimensionExtension(this);
+
+  ElevationExtension get elevation => ElevationExtension(this);
 }
 
 class GradientExtension {
@@ -1426,6 +1799,13 @@ class GradientExtension {
   GradientExtension(this.context);
 
 ${gradientGetterBuffer.toString()}}
+
+class ShadowExtension {
+  final BuildContext context;
+
+  ShadowExtension(this.context);
+
+${shadowGetterBuffer.toString()}}
 
 class SpaceExtension {
   final BuildContext context;
@@ -1472,6 +1852,13 @@ class DimensionExtension {
 
   double get imageHeight => context.appTheme.dimensions.imageHeight(context);
 }
+
+class ElevationExtension {
+  final BuildContext context;
+
+  ElevationExtension(this.context);
+
+${elevationGetterBuffer.toString()}}
 ''';
 
   writeIfChanged('lib/core/design_system/extensions/context_extension.dart', output);

@@ -13,6 +13,9 @@
   "radius": {
     "md": {"mobile": 4, "tablet": 8, "desktop": 12}
   },
+  "elevations": {
+    "level1": {"mobile": 1, "tablet": 1, "desktop": 1}
+  },
   "typography": {
     "body": {
       "size": {"mobile": 12, "tablet": 14, "desktop": 16},

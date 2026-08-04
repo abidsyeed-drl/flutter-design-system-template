@@ -117,6 +117,36 @@ void main() {
         ),
       );
     });
+
+    test('rejects fixture: unknown shadow color reference', () {
+      final data = _readJson('test/fixtures/tokens_invalid_shadow_color_ref.json');
+
+      expect(
+        () => generator.validateTokensSchema(data),
+        throwsA(
+          isA<StateError>().having(
+            (e) => e.message.toString(),
+            'message',
+            contains('Unknown gradient color reference'),
+          ),
+        ),
+      );
+    });
+
+    test('rejects fixture: invalid shadow opacity bounds', () {
+      final data = _readJson('test/fixtures/tokens_invalid_shadow_opacity.json');
+
+      expect(
+        () => generator.validateTokensSchema(data),
+        throwsA(
+          isA<StateError>().having(
+            (e) => e.message.toString(),
+            'message',
+            contains('must be between 0 and 1'),
+          ),
+        ),
+      );
+    });
   });
 }
 

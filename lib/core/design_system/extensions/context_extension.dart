@@ -10,6 +10,8 @@ extension ContextExtension on BuildContext {
 
   GradientExtension get gradients => GradientExtension(this);
 
+  ShadowExtension get shadows => ShadowExtension(this);
+
   SpaceExtension get space => SpaceExtension(this);
 
   RadiusExtension get radius => RadiusExtension(this);
@@ -17,6 +19,8 @@ extension ContextExtension on BuildContext {
   TypographyExtension get typo => TypographyExtension(this);
 
   DimensionExtension get dimensions => DimensionExtension(this);
+
+  ElevationExtension get elevation => ElevationExtension(this);
 }
 
 class GradientExtension {
@@ -29,6 +33,17 @@ class GradientExtension {
   Gradient get surfaceRadial => context.appTheme.gradients.surfaceRadial(context);
 
   Gradient get statusSweep => context.appTheme.gradients.statusSweep(context);
+
+}
+
+class ShadowExtension {
+  final BuildContext context;
+
+  ShadowExtension(this.context);
+
+  List<BoxShadow> get card => context.appTheme.shadows.card(context);
+
+  List<BoxShadow> get floating => context.appTheme.shadows.floating(context);
 
 }
 
@@ -76,4 +91,17 @@ class DimensionExtension {
   double get imageWidth => context.appTheme.dimensions.imageWidth(context);
 
   double get imageHeight => context.appTheme.dimensions.imageHeight(context);
+}
+
+class ElevationExtension {
+  final BuildContext context;
+
+  ElevationExtension(this.context);
+
+  double get level1 => context.appTheme.elevations.level1(context);
+
+  double get level2 => context.appTheme.elevations.level2(context);
+
+  double get level3 => context.appTheme.elevations.level3(context);
+
 }
