@@ -52,11 +52,18 @@ class SpaceExtension {
 
   SpaceExtension(this.context);
 
+  double get xs => context.appTheme.spacing.xs(context);
+
   double get sm => context.appTheme.spacing.sm(context);
 
   double get md => context.appTheme.spacing.md(context);
 
   double get lg => context.appTheme.spacing.lg(context);
+
+  double get xl => context.appTheme.spacing.xl(context);
+
+  double get x2xl => context.appTheme.spacing.x2xl(context);
+
 }
 
 class RadiusExtension {
@@ -64,7 +71,18 @@ class RadiusExtension {
 
   RadiusExtension(this.context);
 
+  double get xs => context.appTheme.radius.xs(context);
+
+  double get sm => context.appTheme.radius.sm(context);
+
   double get md => context.appTheme.radius.md(context);
+
+  double get lg => context.appTheme.radius.lg(context);
+
+  double get xl => context.appTheme.radius.xl(context);
+
+  double get full => context.appTheme.radius.full(context);
+
 }
 
 class TypographyExtension {
@@ -72,9 +90,34 @@ class TypographyExtension {
 
   TypographyExtension(this.context);
 
-  TextStyle get title => context.appTheme.typography.title(context);
+  TextStyle get display => context.appTheme.typography.display(context);
+
+  TextStyle get h1 => context.appTheme.typography.h1(context);
+
+  TextStyle get h2 => context.appTheme.typography.h2(context);
+
+  TextStyle get h3 => context.appTheme.typography.h3(context);
+
+  TextStyle get subtitle => context.appTheme.typography.subtitle(context);
+
+  TextStyle get bodyLarge => context.appTheme.typography.bodyLarge(context);
 
   TextStyle get body => context.appTheme.typography.body(context);
+
+  TextStyle get bodySmall => context.appTheme.typography.bodySmall(context);
+
+  TextStyle get caption => context.appTheme.typography.caption(context);
+
+  TextStyle get overline => context.appTheme.typography.overline(context);
+
+  TextStyle get button => context.appTheme.typography.button(context);
+
+  TextStyle get label => context.appTheme.typography.label(context);
+
+  TextStyle get number => context.appTheme.typography.number(context);
+
+  TextStyle get numberSmall => context.appTheme.typography.numberSmall(context);
+
 }
 
 class DimensionExtension {
@@ -91,6 +134,27 @@ class DimensionExtension {
   double get imageWidth => context.appTheme.dimensions.imageWidth(context);
 
   double get imageHeight => context.appTheme.dimensions.imageHeight(context);
+
+  double get cardPadding => context.appTheme.dimensions.cardPadding(context);
+
+  double get cardRadius => context.appTheme.dimensions.cardRadius(context);
+
+  double get inputHeight => context.appTheme.dimensions.inputHeight(context);
+
+  double get navBarHeight => context.appTheme.dimensions.navBarHeight(context);
+
+  double get chipHeight => context.appTheme.dimensions.chipHeight(context);
+
+  double get dividerThickness => context.appTheme.dimensions.dividerThickness(context);
+
+  double get statusBarHeight => context.appTheme.dimensions.statusBarHeight(context);
+
+  double get bottomNavHeight => context.appTheme.dimensions.bottomNavHeight(context);
+
+  double get doctorCardHeight => context.appTheme.dimensions.doctorCardHeight(context);
+
+  double get queueNumberSize => context.appTheme.dimensions.queueNumberSize(context);
+
 }
 
 class ElevationExtension {

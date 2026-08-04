@@ -93,5 +93,37 @@ class GeneratedDimensionTokens {
     ).resolve(context).h;
   }
 
+  double statusBarHeight(context) {
+    return ResponsiveValue<double>(
+      mobile: 44,
+      tablet: 44,
+      desktop: 0,
+    ).resolve(context).h;
+  }
+
+  double bottomNavHeight(context) {
+    return ResponsiveValue<double>(
+      mobile: 56,
+      tablet: 60,
+      desktop: 0,
+    ).resolve(context).h;
+  }
+
+  double doctorCardHeight(context) {
+    return ResponsiveValue<double>(
+      mobile: 100,
+      tablet: 120,
+      desktop: 140,
+    ).resolve(context).h;
+  }
+
+  double queueNumberSize(context) {
+    return ResponsiveValue<double>(
+      mobile: 64,
+      tablet: 80,
+      desktop: 96,
+    ).resolve(context).r;
+  }
+
 
 }

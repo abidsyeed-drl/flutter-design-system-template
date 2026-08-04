@@ -147,6 +147,25 @@ void main() {
     expect(content, contains('letterSpacing: 0.3.sp,'));
   });
 
+  test('generated spacing supports numeric-leading token keys with safe members', () {
+    final file = File('lib/core/design_system/generated/generated_spacing_tokens.dart');
+    final content = file.readAsStringSync();
+
+    expect(content, contains('double x2xl(context)'));
+  });
+
+  test('generated members preserve camelCase token APIs', () {
+    final dimensionFile = File('lib/core/design_system/generated/generated_dimension_tokens.dart');
+    final dimensionContent = dimensionFile.readAsStringSync();
+
+    final contextFile = File('lib/core/design_system/extensions/context_extension.dart');
+    final contextContent = contextFile.readAsStringSync();
+
+    expect(dimensionContent, contains('double buttonHeight(context)'));
+    expect(contextContent,
+        contains('double get buttonHeight => context.appTheme.dimensions.buttonHeight(context);'));
+  });
+
   test('generated app theme exposes responsive design size helpers', () {
     final file = File('lib/core/design_system/theme/app_theme.dart');
     final content = file.readAsStringSync();

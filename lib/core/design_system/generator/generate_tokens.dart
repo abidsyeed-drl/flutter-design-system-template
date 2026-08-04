@@ -91,6 +91,56 @@ String _tokenShadowThemeBaseClassName() => 'ShadowTokensBase';
 
 final RegExp _hexColorRegex = RegExp(r'^#[0-9A-Fa-f]{6}$');
 final RegExp _dartIdentifierRegex = RegExp(r'^[A-Za-z_][A-Za-z0-9_]*$');
+final RegExp _tokenKeyRegex = RegExp(r'^[A-Za-z0-9_]+$');
+
+String _tokenMemberName(String tokenKey) {
+  // Keep existing Dart identifier keys unchanged to preserve public APIs.
+  if (_dartIdentifierRegex.hasMatch(tokenKey)) {
+    return tokenKey;
+  }
+
+  final normalized = tokenKey.replaceAll(RegExp(r'[^A-Za-z0-9_]+'), '_');
+  final parts = normalized.split('_').where((part) => part.isNotEmpty).toList();
+  if (parts.isEmpty) {
+    throw StateError('Token key "$tokenKey" cannot be converted to a Dart member name.');
+  }
+
+  var member = parts.first;
+  for (final part in parts.skip(1)) {
+    member += part[0].toUpperCase() + part.substring(1);
+  }
+
+  if (RegExp(r'^[0-9]').hasMatch(member)) {
+    member = 'x$member';
+  }
+
+  if (!_dartIdentifierRegex.hasMatch(member)) {
+    throw StateError('Token key "$tokenKey" cannot be converted to a valid Dart member name.');
+  }
+
+  return member;
+}
+
+Map<String, String> _tokenMemberMap(Iterable<dynamic> keys, String sectionPath) {
+  final result = <String, String>{};
+  final usedMemberNames = <String, String>{};
+
+  for (final raw in keys) {
+    final key = raw.toString();
+    final memberName = _tokenMemberName(key);
+    final existing = usedMemberNames[memberName];
+    if (existing != null && existing != key) {
+      throw StateError(
+        'Token keys "$existing" and "$key" in "$sectionPath" both map to "$memberName". '
+        'Rename one of them to keep generated Dart members unique.',
+      );
+    }
+    usedMemberNames[memberName] = key;
+    result[key] = memberName;
+  }
+
+  return result;
+}
 
 void validateTokensSchema(Map<String, dynamic> data) {
   const requiredTopLevel = [
@@ -177,10 +227,12 @@ void validateTokensSchema(Map<String, dynamic> data) {
   _validateResponsiveSection(
     _map(data['spacing'], 'Missing "spacing" in tokens.json'),
     sectionName: 'spacing',
+    allowNumericLeadingKey: true,
   );
   _validateResponsiveSection(
     _map(data['radius'], 'Missing "radius" in tokens.json'),
     sectionName: 'radius',
+    allowNumericLeadingKey: true,
   );
   _validateResponsiveSection(
     _map(data['dimensions'], 'Missing "dimensions" in tokens.json'),
@@ -209,6 +261,16 @@ void _validateTokenName(String sectionPath, String key) {
   }
 }
 
+void _validateFlexibleTokenName(String sectionPath, String key) {
+  if (!_tokenKeyRegex.hasMatch(key)) {
+    throw StateError(
+      'Invalid token name "$sectionPath.$key". Use only letters, numbers, and underscore.',
+    );
+  }
+
+  _tokenMemberName(key);
+}
+
 void _validateHexColor(dynamic value, String path) {
   if (value is! String || !_hexColorRegex.hasMatch(value)) {
     throw StateError('Invalid color at "$path": "$value". Expected format: #RRGGBB');
@@ -219,6 +281,7 @@ void _validateResponsiveSection(
   Map<String, dynamic> section, {
   required String sectionName,
   bool requireType = false,
+  bool allowNumericLeadingKey = false,
 }) {
   if (section.isEmpty) {
     throw StateError('"$sectionName" must not be empty');
@@ -226,7 +289,11 @@ void _validateResponsiveSection(
 
   for (final entry in section.entries) {
     final tokenName = entry.key;
-    _validateTokenName(sectionName, tokenName);
+    if (allowNumericLeadingKey) {
+      _validateFlexibleTokenName(sectionName, tokenName);
+    } else {
+      _validateTokenName(sectionName, tokenName);
+    }
 
     final token = _map(entry.value, 'Invalid token "$sectionName.$tokenName"');
     _requireNum(token['mobile'], '$sectionName.$tokenName.mobile');
@@ -1027,7 +1094,7 @@ import '../responsive/responsive_value.dart';
 class GeneratedElevationTokens {
   const GeneratedElevationTokens();
 
-${generateResponsiveDouble(elevations)}
+${generateResponsiveDouble(elevations, sectionName: 'elevations')}
 ${aliasBuffer.toString()}
 }
 ''';
@@ -1048,18 +1115,22 @@ import '../responsive/responsive_value.dart';
 class GeneratedSpacingTokens {
   const GeneratedSpacingTokens();
 
-${generateResponsiveDouble(spacing)}
+${generateResponsiveDouble(spacing, sectionName: 'spacing')}
 }
 ''';
 
   writeFile('generated_spacing_tokens.dart', output);
 }
 
-String generateResponsiveDouble(Map<String, dynamic> values) {
+String generateResponsiveDouble(
+  Map<String, dynamic> values, {
+  required String sectionName,
+}) {
   final buffer = StringBuffer();
+  final memberNames = _tokenMemberMap(values.keys, sectionName);
 
   for (final entry in values.entries) {
-    final key = entry.key;
+    final key = memberNames[entry.key] ?? entry.key;
     final token = _map(entry.value, 'Invalid responsive token for "$key"');
     buffer.writeln('''
   double $key(context) {
@@ -1088,7 +1159,7 @@ import '../responsive/responsive_value.dart';
 class GeneratedRadiusTokens {
   const GeneratedRadiusTokens();
 
-${generateResponsiveDouble(radius)}
+${generateResponsiveDouble(radius, sectionName: 'radius')}
 }
 ''';
 
@@ -1119,9 +1190,10 @@ ${generateTextStyles(typography)}
 
 String generateTextStyles(Map<String, dynamic> values) {
   final buffer = StringBuffer();
+  final memberNames = _tokenMemberMap(values.keys, 'typography');
 
   for (final entry in values.entries) {
-    final name = entry.key;
+    final name = memberNames[entry.key] ?? entry.key;
     final token = _map(entry.value, 'Invalid typography token for "$name"');
     final size = _map(token['size'], 'Missing typography size for "$name"');
     final lineHeight = token['lineHeight'] == null
@@ -1193,9 +1265,10 @@ ${generateDimensionsCode(dimensions)}
 
 String generateDimensionsCode(Map<String, dynamic> values) {
   final buffer = StringBuffer();
+  final memberNames = _tokenMemberMap(values.keys, 'dimensions');
 
   for (final entry in values.entries) {
-    final name = entry.key;
+    final name = memberNames[entry.key] ?? entry.key;
     final token = _map(entry.value, 'Invalid dimension token for "$name"');
     final type = token['type'] as String?;
 
@@ -1255,6 +1328,14 @@ void updateTokenWrappers(Map<String, dynamic> data) {
   final radius = _map(data['radius'], 'Missing "radius" in tokens.json');
   final typography = _map(data['typography'], 'Missing "typography" in tokens.json');
   final dimensions = _map(data['dimensions'], 'Missing "dimensions" in tokens.json');
+
+  final spacingMethodNames = _tokenMemberMap(spacing.keys, 'spacing').values;
+  final radiusMethodNames = _tokenMemberMap(radius.keys, 'radius').values;
+  final typographyMethodNames = _tokenMemberMap(typography.keys, 'typography').values;
+  final dimensionMethodNames = _tokenMemberMap(dimensions.keys, 'dimensions').values;
+  final elevationMethodNames = _tokenMemberMap(elevations.keys, 'elevations').values;
+  final elevationAliasMethodNames =
+      _tokenMemberMap(elevationAliases.keys, 'elevationAliases').values;
 
   final colorExtraClasses = <Map<String, dynamic>>[];
   final gradientExtraClasses = <Map<String, dynamic>>[];
@@ -1464,10 +1545,10 @@ void updateTokenWrappers(Map<String, dynamic> data) {
         content = _removeStaleMethodOverrides(content, classForTheme, shadows.keys);
       }
     } else if (fileName == 'spacing_tokens.dart') {
-      content = _ensureMethodOverrides(content, 'SpacingTokens', spacing.keys, 'double');
-      content = _removeStaleMethodOverrides(content, 'SpacingTokens', spacing.keys);
+      content = _ensureMethodOverrides(content, 'SpacingTokens', spacingMethodNames, 'double');
+      content = _removeStaleMethodOverrides(content, 'SpacingTokens', spacingMethodNames);
     } else if (fileName == 'elevation_tokens.dart') {
-      final allElevationNames = [...elevations.keys, ...elevationAliases.keys];
+      final allElevationNames = [...elevationMethodNames, ...elevationAliasMethodNames];
       content = _ensureMethodOverrides(
         content,
         'ElevationTokens',
@@ -1476,14 +1557,19 @@ void updateTokenWrappers(Map<String, dynamic> data) {
       );
       content = _removeStaleMethodOverrides(content, 'ElevationTokens', allElevationNames);
     } else if (fileName == 'radius_tokens.dart') {
-      content = _ensureMethodOverrides(content, 'RadiusTokens', radius.keys, 'double');
-      content = _removeStaleMethodOverrides(content, 'RadiusTokens', radius.keys);
+      content = _ensureMethodOverrides(content, 'RadiusTokens', radiusMethodNames, 'double');
+      content = _removeStaleMethodOverrides(content, 'RadiusTokens', radiusMethodNames);
     } else if (fileName == 'typography_tokens.dart') {
-      content = _ensureMethodOverrides(content, 'TypographyTokens', typography.keys, 'TextStyle');
-      content = _removeStaleMethodOverrides(content, 'TypographyTokens', typography.keys);
+      content = _ensureMethodOverrides(
+        content,
+        'TypographyTokens',
+        typographyMethodNames,
+        'TextStyle',
+      );
+      content = _removeStaleMethodOverrides(content, 'TypographyTokens', typographyMethodNames);
     } else if (fileName == 'dimension_tokens.dart') {
-      content = _ensureMethodOverrides(content, 'DimensionTokens', dimensions.keys, 'double');
-      content = _removeStaleMethodOverrides(content, 'DimensionTokens', dimensions.keys);
+      content = _ensureMethodOverrides(content, 'DimensionTokens', dimensionMethodNames, 'double');
+      content = _removeStaleMethodOverrides(content, 'DimensionTokens', dimensionMethodNames);
     }
 
     file.writeAsStringSync(content);
@@ -1986,6 +2072,10 @@ ${themeMapEntries.join('\n')}
 
 void updateContextExtension(Map<String, dynamic> data) {
   final themes = _map(data['themes'], 'Missing "themes" in tokens.json');
+  final spacing = _map(data['spacing'], 'Missing "spacing" in tokens.json');
+  final radius = _map(data['radius'], 'Missing "radius" in tokens.json');
+  final typography = _map(data['typography'], 'Missing "typography" in tokens.json');
+  final dimensions = _map(data['dimensions'], 'Missing "dimensions" in tokens.json');
   final elevations = _map(data['elevations'], 'Missing "elevations" in tokens.json');
   final elevationAliases = data.containsKey('elevationAliases')
       ? _map(data['elevationAliases'], 'Invalid "elevationAliases" in tokens.json')
@@ -2012,17 +2102,55 @@ void updateContextExtension(Map<String, dynamic> data) {
     shadowGetterBuffer.writeln();
   }
   final elevationGetterBuffer = StringBuffer();
-  for (final elevationName in elevations.keys) {
+  final elevationMemberMap = _tokenMemberMap(elevations.keys, 'elevations');
+  for (final elevationName in elevationMemberMap.values) {
     elevationGetterBuffer.writeln(
       '  double get $elevationName => context.appTheme.elevations.$elevationName(context);',
     );
     elevationGetterBuffer.writeln();
   }
-  for (final aliasName in elevationAliases.keys) {
+  final elevationAliasMemberMap = _tokenMemberMap(elevationAliases.keys, 'elevationAliases');
+  for (final aliasName in elevationAliasMemberMap.values) {
     elevationGetterBuffer.writeln(
       '  double get $aliasName => context.appTheme.elevations.$aliasName(context);',
     );
     elevationGetterBuffer.writeln();
+  }
+
+  final spacingGetterBuffer = StringBuffer();
+  final spacingMemberMap = _tokenMemberMap(spacing.keys, 'spacing');
+  for (final spacingName in spacingMemberMap.values) {
+    spacingGetterBuffer.writeln(
+      '  double get $spacingName => context.appTheme.spacing.$spacingName(context);',
+    );
+    spacingGetterBuffer.writeln();
+  }
+
+  final radiusGetterBuffer = StringBuffer();
+  final radiusMemberMap = _tokenMemberMap(radius.keys, 'radius');
+  for (final radiusName in radiusMemberMap.values) {
+    radiusGetterBuffer.writeln(
+      '  double get $radiusName => context.appTheme.radius.$radiusName(context);',
+    );
+    radiusGetterBuffer.writeln();
+  }
+
+  final typographyGetterBuffer = StringBuffer();
+  final typographyMemberMap = _tokenMemberMap(typography.keys, 'typography');
+  for (final typoName in typographyMemberMap.values) {
+    typographyGetterBuffer.writeln(
+      '  TextStyle get $typoName => context.appTheme.typography.$typoName(context);',
+    );
+    typographyGetterBuffer.writeln();
+  }
+
+  final dimensionGetterBuffer = StringBuffer();
+  final dimensionMemberMap = _tokenMemberMap(dimensions.keys, 'dimensions');
+  for (final dimName in dimensionMemberMap.values) {
+    dimensionGetterBuffer.writeln(
+      '  double get $dimName => context.appTheme.dimensions.$dimName(context);',
+    );
+    dimensionGetterBuffer.writeln();
   }
 
   final output = '''
@@ -2070,46 +2198,28 @@ class SpaceExtension {
 
   SpaceExtension(this.context);
 
-  double get sm => context.appTheme.spacing.sm(context);
-
-  double get md => context.appTheme.spacing.md(context);
-
-  double get lg => context.appTheme.spacing.lg(context);
-}
+${spacingGetterBuffer.toString()}}
 
 class RadiusExtension {
   final BuildContext context;
 
   RadiusExtension(this.context);
 
-  double get md => context.appTheme.radius.md(context);
-}
+${radiusGetterBuffer.toString()}}
 
 class TypographyExtension {
   final BuildContext context;
 
   TypographyExtension(this.context);
 
-  TextStyle get title => context.appTheme.typography.title(context);
-
-  TextStyle get body => context.appTheme.typography.body(context);
-}
+${typographyGetterBuffer.toString()}}
 
 class DimensionExtension {
   final BuildContext context;
 
   DimensionExtension(this.context);
 
-  double get buttonHeight => context.appTheme.dimensions.buttonHeight(context);
-
-  double get icon => context.appTheme.dimensions.icon(context);
-
-  double get avatar => context.appTheme.dimensions.avatar(context);
-
-  double get imageWidth => context.appTheme.dimensions.imageWidth(context);
-
-  double get imageHeight => context.appTheme.dimensions.imageHeight(context);
-}
+${dimensionGetterBuffer.toString()}}
 
 class ElevationExtension {
   final BuildContext context;
