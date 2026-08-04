@@ -7,6 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 void main() {
   testWidgets('context extension exposes usable design tokens', (tester) async {
     late Color primary;
+    late Gradient brandGradient;
     late double spaceMd;
     late double radiusMd;
     late TextStyle title;
@@ -21,6 +22,7 @@ void main() {
             home: Builder(
               builder: (context) {
                 primary = context.colors.primary;
+                brandGradient = context.gradients.brandLinear;
                 spaceMd = context.space.md;
                 radiusMd = context.radius.md;
                 title = context.typo.title;
@@ -34,6 +36,7 @@ void main() {
     );
 
     expect(primary.alpha, greaterThanOrEqualTo(0));
+    expect(brandGradient, isA<Gradient>());
     expect(spaceMd, greaterThan(0));
     expect(radiusMd, greaterThan(0));
     expect(title.fontSize, isNotNull);

@@ -11,16 +11,19 @@ class AppTheme {
 
   static final ThemeData light = _buildTheme(
     colors: const LightColorTokens(),
+    gradients: const LightGradientTokens(),
     brightness: Brightness.light,
   );
 
   static final ThemeData dark = _buildTheme(
     colors: const DarkColorTokens(),
+    gradients: const DarkGradientTokens(),
     brightness: Brightness.dark,
   );
 
   static final ThemeData aurora = _buildTheme(
     colors: const AuroraColorTokens(),
+    gradients: const AuroraGradientTokens(),
     brightness: Brightness.light,
   );
 
@@ -34,6 +37,7 @@ class AppTheme {
 
   static ThemeData _buildTheme({
     required ColorTokensBase colors,
+    required GradientTokensBase gradients,
     required Brightness brightness,
   }) {
     return ThemeData(
@@ -54,6 +58,7 @@ class AppTheme {
       extensions: [
         AppThemeExtension(
           colors: colors,
+          gradients: gradients,
           spacing: spacing,
           radius: radius,
           typography: typography,

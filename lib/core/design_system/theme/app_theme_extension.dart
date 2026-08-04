@@ -4,6 +4,7 @@ import '../tokens/tokens.dart';
 
 class AppThemeExtension extends ThemeExtension<AppThemeExtension> {
   final ColorTokensBase colors;
+  final GradientTokensBase gradients;
   final SpacingTokens spacing;
   final RadiusTokens radius;
   final TypographyTokens typography;
@@ -11,6 +12,7 @@ class AppThemeExtension extends ThemeExtension<AppThemeExtension> {
 
   const AppThemeExtension({
     required this.colors,
+    required this.gradients,
     required this.spacing,
     required this.radius,
     required this.typography,
@@ -20,6 +22,7 @@ class AppThemeExtension extends ThemeExtension<AppThemeExtension> {
   @override
   AppThemeExtension copyWith({
     ColorTokensBase? colors,
+    GradientTokensBase? gradients,
     SpacingTokens? spacing,
     RadiusTokens? radius,
     TypographyTokens? typography,
@@ -27,6 +30,7 @@ class AppThemeExtension extends ThemeExtension<AppThemeExtension> {
   }) {
     return AppThemeExtension(
       colors: colors ?? this.colors,
+      gradients: gradients ?? this.gradients,
       spacing: spacing ?? this.spacing,
       radius: radius ?? this.radius,
       typography: typography ?? this.typography,

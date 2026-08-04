@@ -8,6 +8,7 @@ void main() {
   validateTokensSchema(data);
 
   generateColors(data);
+  generateGradients(data);
   generateSpacing(data);
   generateRadius(data);
   generateTypography(data);
@@ -16,7 +17,7 @@ void main() {
   updateTokensBarrel();
   updateAppThemeExtension(data);
   updateAppTheme(data);
-  updateContextExtension();
+  updateContextExtension(data);
   ensureResponsiveFiles();
 
   print('All tokens generated');
@@ -58,6 +59,20 @@ String _tokenThemeClassName(String themeName) {
 }
 
 String _tokenThemeBaseClassName() => 'ColorTokensBase';
+
+String _themeGradientClassName(String themeName) =>
+    'Generated${_pascalCase(themeName)}GradientTokens';
+
+String _themeGradientBaseClassName() => 'GeneratedThemeGradientTokens';
+
+String _tokenGradientThemeClassName(String themeName) {
+  if (themeName.toLowerCase() == 'light') {
+    return 'LightGradientTokens';
+  }
+  return '${_pascalCase(themeName)}GradientTokens';
+}
+
+String _tokenGradientThemeBaseClassName() => 'GradientTokensBase';
 
 final RegExp _hexColorRegex = RegExp(r'^#[0-9A-Fa-f]{6}$');
 final RegExp _dartIdentifierRegex = RegExp(r'^[A-Za-z_][A-Za-z0-9_]*$');
@@ -127,6 +142,8 @@ void validateTokensSchema(Map<String, dynamic> data) {
       );
     }
   }
+
+  _validateThemeGradients(themes);
 
   _validateResponsiveSection(
     _map(data['spacing'], 'Missing "spacing" in tokens.json'),
@@ -234,6 +251,207 @@ void _requireNum(dynamic value, String path) {
   }
 }
 
+void _validateThemeGradients(Map<String, dynamic> themes) {
+  final lightTheme = _map(themes['light'], 'Invalid theme definition for "light"');
+  final hasLightGradients = lightTheme.containsKey('gradients');
+  final themeEntries = _orderedEntries(themes);
+
+  if (!hasLightGradients) {
+    for (final entry in themeEntries) {
+      final theme = _map(entry.value, 'Invalid theme definition for "${entry.key}"');
+      if (theme.containsKey('gradients')) {
+        throw StateError(
+          'Theme "${entry.key}" defines gradients but "light" does not. '
+          'Either define gradients for all themes or remove gradients entirely.',
+        );
+      }
+    }
+    return;
+  }
+
+  final lightGradients = _map(
+    lightTheme['gradients'],
+    'Invalid "themes.light.gradients" in tokens.json',
+  );
+  if (lightGradients.isEmpty) {
+    throw StateError('"themes.light.gradients" must not be empty when provided');
+  }
+
+  final baselineKeys = <String>{};
+  final lightColorKeys = _map(
+    lightTheme['colors'],
+    'Missing "themes.light.colors" in tokens.json',
+  ).keys.cast<String>().toSet();
+  for (final entry in lightGradients.entries) {
+    final key = entry.key;
+    _validateTokenName('themes.light.gradients', key);
+    _validateGradientToken(
+      entry.value,
+      'themes.light.gradients.$key',
+      availableColorKeys: lightColorKeys,
+    );
+    baselineKeys.add(key);
+  }
+
+  for (final themeEntry in themeEntries) {
+    final themeName = themeEntry.key;
+    final theme = _map(themeEntry.value, 'Invalid theme definition for "$themeName"');
+    if (!theme.containsKey('gradients')) {
+      throw StateError(
+        'Theme "$themeName" is missing "gradients". '
+        'All themes must define gradients when light has gradients.',
+      );
+    }
+
+    final gradients = _map(
+      theme['gradients'],
+      'Invalid "themes.$themeName.gradients" in tokens.json',
+    );
+    final themeColorKeys = _map(
+      theme['colors'],
+      'Missing "themes.$themeName.colors" in tokens.json',
+    ).keys.cast<String>().toSet();
+
+    final keys = gradients.keys.cast<String>().toSet();
+    final missingKeys = baselineKeys.difference(keys);
+    final extraKeys = keys.difference(baselineKeys);
+    if (missingKeys.isNotEmpty || extraKeys.isNotEmpty) {
+      throw StateError(
+        'Theme "$themeName" gradient keys must match "light" exactly. '
+        'Missing: ${missingKeys.join(', ')}. Extra: ${extraKeys.join(', ')}.',
+      );
+    }
+
+    for (final gradientEntry in gradients.entries) {
+      final gradientKey = gradientEntry.key;
+      _validateTokenName('themes.$themeName.gradients', gradientKey);
+      _validateGradientToken(
+        gradientEntry.value,
+        'themes.$themeName.gradients.$gradientKey',
+        availableColorKeys: themeColorKeys,
+      );
+    }
+  }
+}
+
+void _validateGradientToken(
+  dynamic value,
+  String path, {
+  required Set<String> availableColorKeys,
+}) {
+  final token = _map(value, 'Invalid gradient token at "$path"');
+  final type = token['type'];
+  const allowedTypes = {'linear', 'radial', 'sweep'};
+  if (type is! String || !allowedTypes.contains(type)) {
+    throw StateError(
+      'Invalid gradient type at "$path.type": "$type". Allowed: linear, radial, sweep.',
+    );
+  }
+
+  final colors = token['colors'];
+  if (colors is! List || colors.length < 2) {
+    throw StateError('Gradient "$path" must define at least two colors.');
+  }
+  for (var i = 0; i < colors.length; i++) {
+    _validateGradientColorValue(
+      colors[i],
+      '$path.colors[$i]',
+      availableColorKeys: availableColorKeys,
+    );
+  }
+
+  final stops = token['stops'];
+  if (stops != null) {
+    if (stops is! List || stops.length != colors.length) {
+      throw StateError(
+        'Gradient "$path.stops" must be a list with the same length as colors.',
+      );
+    }
+    for (var i = 0; i < stops.length; i++) {
+      final stop = stops[i];
+      if (stop is! num || stop < 0 || stop > 1) {
+        throw StateError('Gradient stop "$path.stops[$i]" must be a number between 0 and 1.');
+      }
+      if (i > 0 && stop < (stops[i - 1] as num)) {
+        throw StateError('Gradient stops at "$path.stops" must be in ascending order.');
+      }
+    }
+  }
+
+  if (type == 'linear') {
+    final begin = token['begin'];
+    final end = token['end'];
+    if (begin is! String || !_isAllowedAlignment(begin)) {
+      throw StateError('Invalid linear gradient begin at "$path.begin": "$begin"');
+    }
+    if (end is! String || !_isAllowedAlignment(end)) {
+      throw StateError('Invalid linear gradient end at "$path.end": "$end"');
+    }
+  }
+
+  if (type == 'radial') {
+    final center = token['center'];
+    if (center != null && (center is! String || !_isAllowedAlignment(center))) {
+      throw StateError('Invalid radial gradient center at "$path.center": "$center"');
+    }
+    final radius = token['radius'];
+    if (radius is! num || radius <= 0) {
+      throw StateError('Invalid radial gradient radius at "$path.radius": "$radius"');
+    }
+  }
+
+  if (type == 'sweep') {
+    final center = token['center'];
+    if (center != null && (center is! String || !_isAllowedAlignment(center))) {
+      throw StateError('Invalid sweep gradient center at "$path.center": "$center"');
+    }
+    final startAngle = token['startAngle'];
+    final endAngle = token['endAngle'];
+    if (startAngle != null && startAngle is! num) {
+      throw StateError('Invalid sweep gradient startAngle at "$path.startAngle": "$startAngle"');
+    }
+    if (endAngle != null && endAngle is! num) {
+      throw StateError('Invalid sweep gradient endAngle at "$path.endAngle": "$endAngle"');
+    }
+  }
+}
+
+void _validateGradientColorValue(
+  dynamic value,
+  String path, {
+  required Set<String> availableColorKeys,
+}) {
+  if (value is! String || value.isEmpty) {
+    throw StateError('Invalid gradient color at "$path": "$value"');
+  }
+
+  if (_hexColorRegex.hasMatch(value)) {
+    return;
+  }
+
+  if (!availableColorKeys.contains(value)) {
+    throw StateError(
+      'Unknown gradient color reference at "$path": "$value". '
+      'Use #RRGGBB or one of: ${availableColorKeys.join(', ')}',
+    );
+  }
+}
+
+bool _isAllowedAlignment(String value) {
+  const allowed = {
+    'topLeft',
+    'topCenter',
+    'topRight',
+    'centerLeft',
+    'center',
+    'centerRight',
+    'bottomLeft',
+    'bottomCenter',
+    'bottomRight',
+  };
+  return allowed.contains(value);
+}
+
 // ---------------- COLORS ----------------
 
 void generateColors(Map<String, dynamic> data) {
@@ -288,6 +506,147 @@ void generateColors(Map<String, dynamic> data) {
   }
 
   writeFile('generated_color_tokens.dart', buffer.toString());
+}
+
+// ---------------- GRADIENTS ----------------
+
+void generateGradients(Map<String, dynamic> data) {
+  final themes = _map(data['themes'], 'Missing "themes" in tokens.json');
+  final themeEntries = _orderedEntries(themes);
+  if (themeEntries.isEmpty) {
+    throw StateError('tokens.json must define at least one theme');
+  }
+
+  final lightTheme = _map(themes['light'], 'Missing "themes.light" in tokens.json');
+  final hasGradients = lightTheme.containsKey('gradients');
+  final gradientKeys = <String>[];
+
+  if (hasGradients) {
+    final lightGradients = _map(
+      lightTheme['gradients'],
+      'Missing "themes.light.gradients" in tokens.json',
+    );
+    gradientKeys.addAll(lightGradients.keys.cast<String>());
+  }
+
+  final buffer = StringBuffer();
+  buffer.writeln("import 'package:flutter/material.dart';");
+  buffer.writeln();
+  buffer.writeln("import '../theme/app_theme_extension.dart';");
+  buffer.writeln();
+  buffer.writeln('abstract class ${_themeGradientBaseClassName()} {');
+  buffer.writeln('  const ${_themeGradientBaseClassName()}();');
+  for (final key in gradientKeys) {
+    buffer.writeln('  Gradient $key(context);');
+  }
+  buffer.writeln('}');
+  buffer.writeln();
+
+  for (final themeEntry in themeEntries) {
+    final themeName = themeEntry.key;
+    final theme = _map(themeEntry.value, 'Invalid theme definition for "$themeName"');
+    final gradients = hasGradients
+        ? _map(theme['gradients'], 'Missing "themes.$themeName.gradients" in tokens.json')
+        : <String, dynamic>{};
+
+    final className = _themeGradientClassName(themeName);
+    buffer.writeln('class $className extends ${_themeGradientBaseClassName()} {');
+    buffer.writeln('  const $className();');
+
+    for (final key in gradientKeys) {
+      final token = _map(
+        gradients[key],
+        'Missing "themes.$themeName.gradients.$key" in tokens.json',
+      );
+      buffer.writeln('  @override');
+      buffer.writeln('  Gradient $key(context) {');
+      buffer.writeln('    return ${_gradientExpression(token)};');
+      buffer.writeln('  }');
+    }
+
+    buffer.writeln('}');
+    if (themeEntry != themeEntries.last) {
+      buffer.writeln();
+    }
+  }
+
+  writeFile('generated_gradient_tokens.dart', buffer.toString());
+}
+
+String _gradientExpression(Map<String, dynamic> token) {
+  final type = token['type'] as String;
+  final colorValues = (token['colors'] as List).cast<dynamic>();
+  final colorsExpr = _gradientColorsExpression(colorValues);
+  final stops = token['stops'] as List?;
+  final stopsExpr = stops == null ? null : _constNumListExpression(stops.cast<num>());
+
+  if (type == 'linear') {
+    final begin = _alignmentExpression(token['begin'] as String);
+    final end = _alignmentExpression(token['end'] as String);
+    return 'LinearGradient(begin: $begin, end: $end, colors: $colorsExpr${stopsExpr == null ? '' : ', stops: $stopsExpr'})';
+  }
+
+  if (type == 'radial') {
+    final centerValue = token['center'] as String?;
+    final center = _alignmentExpression(centerValue ?? 'center');
+    final radius = token['radius'] as num;
+    return 'RadialGradient(center: $center, radius: ${radius.toDouble()}, colors: $colorsExpr${stopsExpr == null ? '' : ', stops: $stopsExpr'})';
+  }
+
+  final centerValue = token['center'] as String?;
+  final center = _alignmentExpression(centerValue ?? 'center');
+  final startAngle = token['startAngle'] as num?;
+  final endAngle = token['endAngle'] as num?;
+  final startAnglePart = startAngle == null ? '' : ', startAngle: ${startAngle.toDouble()}';
+  final endAnglePart = endAngle == null ? '' : ', endAngle: ${endAngle.toDouble()}';
+  return 'SweepGradient(center: $center, colors: $colorsExpr${stopsExpr == null ? '' : ', stops: $stopsExpr'}$startAnglePart$endAnglePart)';
+}
+
+String _gradientColorsExpression(List<dynamic> values) {
+  final resolved = values.map(_gradientColorExpression).join(', ');
+  return '[$resolved]';
+}
+
+String _gradientColorExpression(dynamic value) {
+  if (value is! String || value.isEmpty) {
+    throw StateError('Invalid gradient color value "$value"');
+  }
+
+  if (_hexColorRegex.hasMatch(value)) {
+    return 'const Color(0xff${value.substring(1)})';
+  }
+
+  return 'Theme.of(context).extension<AppThemeExtension>()!.colors.$value';
+}
+
+String _constNumListExpression(List<num> values) {
+  final list = values.map((v) => v.toDouble().toString()).join(', ');
+  return 'const [$list]';
+}
+
+String _alignmentExpression(String value) {
+  switch (value) {
+    case 'topLeft':
+      return 'Alignment.topLeft';
+    case 'topCenter':
+      return 'Alignment.topCenter';
+    case 'topRight':
+      return 'Alignment.topRight';
+    case 'centerLeft':
+      return 'Alignment.centerLeft';
+    case 'center':
+      return 'Alignment.center';
+    case 'centerRight':
+      return 'Alignment.centerRight';
+    case 'bottomLeft':
+      return 'Alignment.bottomLeft';
+    case 'bottomCenter':
+      return 'Alignment.bottomCenter';
+    case 'bottomRight':
+      return 'Alignment.bottomRight';
+    default:
+      throw StateError('Unsupported alignment token "$value"');
+  }
 }
 
 // ---------------- SPACING ----------------
@@ -472,6 +831,9 @@ void updateTokenWrappers(Map<String, dynamic> data) {
     lightTheme['colors'],
     'Missing "themes.light.colors" in tokens.json',
   );
+  final lightGradients = lightTheme.containsKey('gradients')
+      ? _map(lightTheme['gradients'], 'Invalid "themes.light.gradients" in tokens.json')
+      : <String, dynamic>{};
 
   final spacing = _map(data['spacing'], 'Missing "spacing" in tokens.json');
   final radius = _map(data['radius'], 'Missing "radius" in tokens.json');
@@ -479,6 +841,7 @@ void updateTokenWrappers(Map<String, dynamic> data) {
   final dimensions = _map(data['dimensions'], 'Missing "dimensions" in tokens.json');
 
   final colorExtraClasses = <Map<String, dynamic>>[];
+  final gradientExtraClasses = <Map<String, dynamic>>[];
   for (final themeEntry in themeEntries) {
     final themeName = themeEntry.key;
     if (themeName.toLowerCase() == 'light') {
@@ -487,6 +850,11 @@ void updateTokenWrappers(Map<String, dynamic> data) {
     colorExtraClasses.add({
       'className': _tokenThemeClassName(themeName),
       'extends': _themeClassName(themeName),
+      'themeKey': themeName,
+    });
+    gradientExtraClasses.add({
+      'className': _tokenGradientThemeClassName(themeName),
+      'extends': _themeGradientClassName(themeName),
       'themeKey': themeName,
     });
   }
@@ -505,6 +873,14 @@ void updateTokenWrappers(Map<String, dynamic> data) {
       'className': 'SpacingTokens',
       'extends': 'GeneratedSpacingTokens',
       'imports': ['../generated/generated_spacing_tokens.dart'],
+    },
+    'gradient_tokens.dart': {
+      'className': 'LightGradientTokens',
+      'extends': _themeGradientClassName('light'),
+      'imports': [
+        '../generated/generated_gradient_tokens.dart',
+      ],
+      'extraClasses': gradientExtraClasses,
     },
     'radius_tokens.dart': {
       'className': 'RadiusTokens',
@@ -543,6 +919,8 @@ void updateTokenWrappers(Map<String, dynamic> data) {
 
     if (fileName == 'color_tokens.dart') {
       content = _cleanupCorruptColorBlock(content);
+    } else if (fileName == 'gradient_tokens.dart') {
+      content = content.replaceAll("import 'package:flutter/material.dart';\n", '');
     }
 
     for (final importLine in imports) {
@@ -556,6 +934,9 @@ void updateTokenWrappers(Map<String, dynamic> data) {
     if (fileName == 'color_tokens.dart') {
       content = _ensureColorBaseClass(content);
       content = _ensureImplements(content, className, _tokenThemeBaseClassName());
+    } else if (fileName == 'gradient_tokens.dart') {
+      content = _ensureGradientBaseClass(content);
+      content = _ensureImplements(content, className, _tokenGradientThemeBaseClassName());
     }
 
     for (final extraClass in extraClasses) {
@@ -564,6 +945,8 @@ void updateTokenWrappers(Map<String, dynamic> data) {
       content = _ensureClass(content, extraName, extraExtends);
       if (fileName == 'color_tokens.dart') {
         content = _ensureImplements(content, extraName, _tokenThemeBaseClassName());
+      } else if (fileName == 'gradient_tokens.dart') {
+        content = _ensureImplements(content, extraName, _tokenGradientThemeBaseClassName());
       }
     }
 
@@ -582,6 +965,31 @@ void updateTokenWrappers(Map<String, dynamic> data) {
         // Only add @override when a getter already exists in that class.
         content = _ensureGetterOverrides(content, classForTheme, colors.keys);
       }
+    } else if (fileName == 'gradient_tokens.dart') {
+      content = _ensureMethodOverrides(
+        content,
+        'LightGradientTokens',
+        lightGradients.keys,
+        'Gradient',
+      );
+
+      for (final extraClass in extraClasses) {
+        final themeKey = extraClass['themeKey'] as String?;
+        final classForTheme = extraClass['className'] as String;
+        if (themeKey == null) {
+          continue;
+        }
+        final theme = _map(themes[themeKey], 'Missing "themes.$themeKey" in tokens.json');
+        final gradients = theme.containsKey('gradients')
+            ? _map(theme['gradients'], 'Missing "themes.$themeKey.gradients" in tokens.json')
+            : <String, dynamic>{};
+        content = _ensureMethodOverrides(
+          content,
+          classForTheme,
+          gradients.keys,
+          'Gradient',
+        );
+      }
     } else if (fileName == 'spacing_tokens.dart') {
       content = _ensureMethodOverrides(content, 'SpacingTokens', spacing.keys, 'double');
     } else if (fileName == 'radius_tokens.dart') {
@@ -599,15 +1007,16 @@ void updateTokenWrappers(Map<String, dynamic> data) {
 String _ensureGetterOverrides(
   String content,
   String className,
-  Iterable<dynamic> getterNames,
-) {
+  Iterable<dynamic> getterNames, {
+  String returnType = 'Color',
+}) {
   return _rewriteClassBody(content, className, (classBody) {
     var body = classBody;
 
     for (final nameValue in getterNames) {
       final name = nameValue.toString();
       final withOverride = RegExp(
-        r'@override\s+Color\s+get\s+' + name + r'\s*=>',
+        r'@override\s+' + returnType + r'\s+get\s+' + name + r'\s*=>',
         multiLine: true,
       );
       if (withOverride.hasMatch(body)) {
@@ -615,12 +1024,12 @@ String _ensureGetterOverrides(
       }
 
       final withoutOverride = RegExp(
-        r'(^[ \t]*)Color\s+get\s+' + name + r'\s*=>',
+        r'(^[ \t]*)' + returnType + r'\s+get\s+' + name + r'\s*=>',
         multiLine: true,
       );
       body = body.replaceFirstMapped(withoutOverride, (match) {
         final indent = match.group(1) ?? '  ';
-        return '$indent@override\n${indent}Color get $name =>';
+        return '$indent@override\n${indent}$returnType get $name =>';
       });
     }
 
@@ -724,6 +1133,30 @@ String _ensureColorBaseClass(String content) {
   return '$importsBlock\n${classBlock.toString()}$remaining';
 }
 
+String _ensureGradientBaseClass(String content) {
+  const decl = 'abstract class GradientTokensBase extends GeneratedThemeGradientTokens';
+  if (content.contains(decl)) {
+    return content;
+  }
+
+  final classBlock = StringBuffer()
+    ..writeln(
+        'abstract class ${_tokenGradientThemeBaseClassName()} extends GeneratedThemeGradientTokens {')
+    ..writeln('  const ${_tokenGradientThemeBaseClassName()}();')
+    ..writeln('}')
+    ..writeln();
+
+  final importRegex = RegExp(r'^(import\s+[\s\S]*?;\n)+', multiLine: true);
+  final match = importRegex.firstMatch(content);
+  if (match == null) {
+    return '${classBlock.toString()}$content';
+  }
+
+  final importsBlock = content.substring(0, match.end);
+  final remaining = content.substring(match.end);
+  return '$importsBlock\n${classBlock.toString()}$remaining';
+}
+
 String _ensureImplements(String content, String className, String interfaceName) {
   final pattern = RegExp(
     r'class\s+' + className + r'\b\s+extends\s+(\w+)(?:\s+implements\s+([^\{]+))?\s*\{',
@@ -784,6 +1217,7 @@ void updateTokensBarrel() {
   final exports = [
     'color_tokens.dart',
     'dimension_tokens.dart',
+    'gradient_tokens.dart',
     'radius_tokens.dart',
     'spacing_tokens.dart',
     'typography_tokens.dart',
@@ -814,6 +1248,7 @@ import '../tokens/tokens.dart';
 
 class AppThemeExtension extends ThemeExtension<AppThemeExtension> {
   final ${_tokenThemeBaseClassName()} colors;
+  final ${_tokenGradientThemeBaseClassName()} gradients;
   final SpacingTokens spacing;
   final RadiusTokens radius;
   final TypographyTokens typography;
@@ -821,6 +1256,7 @@ class AppThemeExtension extends ThemeExtension<AppThemeExtension> {
 
   const AppThemeExtension({
     required this.colors,
+    required this.gradients,
     required this.spacing,
     required this.radius,
     required this.typography,
@@ -830,6 +1266,7 @@ class AppThemeExtension extends ThemeExtension<AppThemeExtension> {
   @override
   AppThemeExtension copyWith({
     ${_tokenThemeBaseClassName()}? colors,
+    ${_tokenGradientThemeBaseClassName()}? gradients,
     SpacingTokens? spacing,
     RadiusTokens? radius,
     TypographyTokens? typography,
@@ -837,6 +1274,7 @@ class AppThemeExtension extends ThemeExtension<AppThemeExtension> {
   }) {
     return AppThemeExtension(
       colors: colors ?? this.colors,
+      gradients: gradients ?? this.gradients,
       spacing: spacing ?? this.spacing,
       radius: radius ?? this.radius,
       typography: typography ?? this.typography,
@@ -881,6 +1319,7 @@ void updateAppTheme(Map<String, dynamic> data) {
     themeFields.add('''
   static final ThemeData $fieldName = _buildTheme(
     colors: const $className(),
+    gradients: const ${_tokenGradientThemeClassName(themeName)}(),
     brightness: $brightness,
   );
 ''');
@@ -909,6 +1348,7 @@ ${themeMapEntries.join('\n')}
 
   static ThemeData _buildTheme({
     required ${_tokenThemeBaseClassName()} colors,
+    required ${_tokenGradientThemeBaseClassName()} gradients,
     required Brightness brightness,
   }) {
     return ThemeData(
@@ -929,6 +1369,7 @@ ${themeMapEntries.join('\n')}
       extensions: [
         AppThemeExtension(
           colors: colors,
+          gradients: gradients,
           spacing: spacing,
           radius: radius,
           typography: typography,
@@ -943,7 +1384,20 @@ ${themeMapEntries.join('\n')}
   writeIfChanged('lib/core/design_system/theme/app_theme.dart', output);
 }
 
-void updateContextExtension() {
+void updateContextExtension(Map<String, dynamic> data) {
+  final themes = _map(data['themes'], 'Missing "themes" in tokens.json');
+  final lightTheme = _map(themes['light'], 'Missing "themes.light" in tokens.json');
+  final lightGradients = lightTheme.containsKey('gradients')
+      ? _map(lightTheme['gradients'], 'Invalid "themes.light.gradients" in tokens.json')
+      : <String, dynamic>{};
+  final gradientGetterBuffer = StringBuffer();
+  for (final gradientName in lightGradients.keys) {
+    gradientGetterBuffer.writeln(
+      '  Gradient get $gradientName => context.appTheme.gradients.$gradientName(context);',
+    );
+    gradientGetterBuffer.writeln();
+  }
+
   final output = '''
 import 'package:flutter/material.dart';
 
@@ -955,6 +1409,8 @@ extension ContextExtension on BuildContext {
 
   ${_tokenThemeBaseClassName()} get colors => appTheme.colors;
 
+  GradientExtension get gradients => GradientExtension(this);
+
   SpaceExtension get space => SpaceExtension(this);
 
   RadiusExtension get radius => RadiusExtension(this);
@@ -963,6 +1419,13 @@ extension ContextExtension on BuildContext {
 
   DimensionExtension get dimensions => DimensionExtension(this);
 }
+
+class GradientExtension {
+  final BuildContext context;
+
+  GradientExtension(this.context);
+
+${gradientGetterBuffer.toString()}}
 
 class SpaceExtension {
   final BuildContext context;

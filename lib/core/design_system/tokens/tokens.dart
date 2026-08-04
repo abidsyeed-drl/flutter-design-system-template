@@ -1,3 +1,4 @@
+export 'gradient_tokens.dart';
 export 'color_tokens.dart';
 export 'dimension_tokens.dart';
 export 'radius_tokens.dart';

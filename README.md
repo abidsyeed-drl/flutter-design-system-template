@@ -62,6 +62,54 @@ The app currently uses a selectable brand theme with system dark-mode support in
 - Responsive values (`mobile`, `tablet`, `desktop`) must be numeric
 - `dimensions.*.type` must be one of: `width`, `height`, `radius`
 - Typography color references must exist in `themes.light.colors`
+- Optional per-theme `gradients` are supported
+- If gradients are present in `light`, all themes must define gradients with identical keys
+- Gradient types supported: `linear`, `radial`, `sweep`
+
+## Gradient Token Schema
+
+Put gradients inside each theme, next to `colors`:
+
+```json
+{
+	"themes": {
+		"light": {
+			"colors": { "primary": "#2563EB" },
+			"gradients": {
+				"brandLinear": {
+					"type": "linear",
+					"begin": "topLeft",
+					"end": "bottomRight",
+					"colors": ["primary", "secondary"]
+				},
+				"surfaceRadial": {
+					"type": "radial",
+					"center": "center",
+					"radius": 1.15,
+					"colors": ["#FFFFFF", "#DBEAFE"]
+				},
+				"statusSweep": {
+					"type": "sweep",
+					"center": "center",
+					"startAngle": 0.0,
+					"endAngle": 6.28318,
+					"colors": ["#16A34A", "#F59E0B", "#DC2626", "#16A34A"]
+				}
+			}
+		}
+	}
+}
+```
+
+Preferred approach: use color-key references in gradient `colors` (for example `primary`, `secondary`, `error`) so gradients stay synchronized with theme colors.
+
+Fallback approach: direct hex colors are still supported (`#RRGGBB`) when needed.
+
+Generated outputs include:
+
+- [lib/core/design_system/generated/generated_gradient_tokens.dart](lib/core/design_system/generated/generated_gradient_tokens.dart)
+- [lib/core/design_system/tokens/gradient_tokens.dart](lib/core/design_system/tokens/gradient_tokens.dart)
+- `context.gradients` access via [lib/core/design_system/extensions/context_extension.dart](lib/core/design_system/extensions/context_extension.dart)
 
 ## Test Commands
 
@@ -70,6 +118,8 @@ Run schema regression tests:
 ```bash
 flutter test test/generator/schema_validation_test.dart
 ```
+
+This includes invalid gradient-schema fixtures as well.
 
 Run idempotency regression test:
 
@@ -123,6 +173,7 @@ Create a new Figma file and add Variables for:
 - Radius: md
 - Typography: title, body
 - Dimensions: buttonHeight, icon, avatar, imageWidth, imageHeight
+- Gradients: brandLinear (linear), surfaceRadial (radial), statusSweep (sweep)
 
 Keep the naming exactly aligned with [lib/core/design_system/generator/tokens.json](lib/core/design_system/generator/tokens.json).
 
@@ -136,6 +187,12 @@ For the first version, manual copy/paste is fine:
 2. Paste/update [lib/core/design_system/generator/tokens.json](lib/core/design_system/generator/tokens.json).
 3. Run generator command.
 4. Run tests.
+
+For gradients in Figma Variables/plugin output, map to supported gradient types:
+
+- `linear` with `begin`, `end`, `colors`, optional `stops`
+- `radial` with `center`, `radius`, `colors`, optional `stops`
+- `sweep` with `center`, `startAngle`, `endAngle`, `colors`, optional `stops`
 
 ### Step 3: Local automation after export
 
@@ -175,3 +232,18 @@ So full automation usually looks like:
 3. Add transform script.
 4. Add remote sync.
 5. Later build custom plugin only if needed.
+
+## Other Figma Tokens You May Add Next
+
+Besides colors and gradients, common exports from Figma that are useful for Flutter:
+
+- Effects / shadows (single and layered shadows)
+- Opacity tokens
+- Blur tokens
+- Border width/style tokens
+- Motion tokens (duration, curve names)
+- Elevation aliases
+- Breakpoints and layout grid tokens
+- Z-index/layer order tokens
+
+Current generator fully supports colors, gradients, spacing, radius, typography, and dimensions.

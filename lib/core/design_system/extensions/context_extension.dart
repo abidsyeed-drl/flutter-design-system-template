@@ -8,6 +8,8 @@ extension ContextExtension on BuildContext {
 
   ColorTokensBase get colors => appTheme.colors;
 
+  GradientExtension get gradients => GradientExtension(this);
+
   SpaceExtension get space => SpaceExtension(this);
 
   RadiusExtension get radius => RadiusExtension(this);
@@ -15,6 +17,19 @@ extension ContextExtension on BuildContext {
   TypographyExtension get typo => TypographyExtension(this);
 
   DimensionExtension get dimensions => DimensionExtension(this);
+}
+
+class GradientExtension {
+  final BuildContext context;
+
+  GradientExtension(this.context);
+
+  Gradient get brandLinear => context.appTheme.gradients.brandLinear(context);
+
+  Gradient get surfaceRadial => context.appTheme.gradients.surfaceRadial(context);
+
+  Gradient get statusSweep => context.appTheme.gradients.statusSweep(context);
+
 }
 
 class SpaceExtension {

@@ -35,4 +35,44 @@ void main() {
     expect(content, contains('class GeneratedDarkColorTokens extends GeneratedThemeColorTokens'));
     expect(content, contains('class GeneratedAuroraColorTokens extends GeneratedThemeColorTokens'));
   });
+
+  test('gradient wrapper file keeps expected inheritance contract', () {
+    final file = File('lib/core/design_system/tokens/gradient_tokens.dart');
+    final content = file.readAsStringSync();
+
+    expect(
+      content,
+      contains(
+          'class LightGradientTokens extends GeneratedLightGradientTokens implements GradientTokensBase'),
+    );
+    expect(
+      content,
+      contains(
+          'class DarkGradientTokens extends GeneratedDarkGradientTokens implements GradientTokensBase'),
+    );
+    expect(
+      content,
+      contains(
+          'class AuroraGradientTokens extends GeneratedAuroraGradientTokens implements GradientTokensBase'),
+    );
+  });
+
+  test('generated gradients file contains base class and one class per theme', () {
+    final file = File('lib/core/design_system/generated/generated_gradient_tokens.dart');
+    final content = file.readAsStringSync();
+
+    expect(content, contains('abstract class GeneratedThemeGradientTokens'));
+    expect(
+      content,
+      contains('class GeneratedLightGradientTokens extends GeneratedThemeGradientTokens'),
+    );
+    expect(
+      content,
+      contains('class GeneratedDarkGradientTokens extends GeneratedThemeGradientTokens'),
+    );
+    expect(
+      content,
+      contains('class GeneratedAuroraGradientTokens extends GeneratedThemeGradientTokens'),
+    );
+  });
 }

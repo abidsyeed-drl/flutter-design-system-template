@@ -87,6 +87,36 @@ void main() {
         ),
       );
     });
+
+    test('rejects fixture: invalid gradient type', () {
+      final data = _readJson('test/fixtures/tokens_invalid_gradient_type.json');
+
+      expect(
+        () => generator.validateTokensSchema(data),
+        throwsA(
+          isA<StateError>().having(
+            (e) => e.message.toString(),
+            'message',
+            contains('Allowed: linear, radial, sweep'),
+          ),
+        ),
+      );
+    });
+
+    test('rejects fixture: unknown gradient color reference', () {
+      final data = _readJson('test/fixtures/tokens_invalid_gradient_color_ref.json');
+
+      expect(
+        () => generator.validateTokensSchema(data),
+        throwsA(
+          isA<StateError>().having(
+            (e) => e.message.toString(),
+            'message',
+            contains('Unknown gradient color reference'),
+          ),
+        ),
+      );
+    });
   });
 }
 
