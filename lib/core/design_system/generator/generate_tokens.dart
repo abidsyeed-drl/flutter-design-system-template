@@ -168,6 +168,12 @@ void validateTokensSchema(Map<String, dynamic> data) {
   _validateThemeGradients(themes);
   _validateThemeShadows(themes);
 
+  if (data.containsKey('designSizes')) {
+    _validateDesignSizeSection(
+      _map(data['designSizes'], 'Invalid "designSizes" in tokens.json'),
+      sectionName: 'designSizes',
+    );
+  }
   _validateResponsiveSection(
     _map(data['spacing'], 'Missing "spacing" in tokens.json'),
     sectionName: 'spacing',
@@ -236,6 +242,62 @@ void _validateResponsiveSection(
         );
       }
     }
+  }
+}
+
+void _validateResponsiveSizeSection(
+  Map<String, dynamic> section, {
+  required String sectionName,
+}) {
+  if (section.isEmpty) {
+    throw StateError('"$sectionName" must not be empty');
+  }
+
+  const allowed = {'mobile', 'tablet', 'desktop'};
+  final keys = section.keys.cast<String>().toSet();
+  final missing = allowed.difference(keys);
+  final extra = keys.difference(allowed);
+  if (missing.isNotEmpty || extra.isNotEmpty) {
+    throw StateError(
+      '"$sectionName" must define exactly: mobile, tablet, desktop. '
+      'Missing: ${missing.join(', ')}. Extra: ${extra.join(', ')}.',
+    );
+  }
+
+  for (final entry in section.entries) {
+    final name = entry.key;
+    _validateTokenName(sectionName, name);
+    final token = _map(entry.value, 'Invalid token "$sectionName.$name"');
+    _requireNum(token['width'], '$sectionName.$name.width');
+    _requireNum(token['height'], '$sectionName.$name.height');
+  }
+}
+
+void _validateDesignSizeSection(
+  Map<String, dynamic> section, {
+  required String sectionName,
+}) {
+  if (section.isEmpty) {
+    throw StateError('"$sectionName" must not be empty');
+  }
+
+  const allowed = {'mobile', 'tablet', 'desktop'};
+  final keys = section.keys.cast<String>().toSet();
+  final missing = allowed.difference(keys);
+  final extra = keys.difference(allowed);
+  if (missing.isNotEmpty || extra.isNotEmpty) {
+    throw StateError(
+      '"$sectionName" must define exactly: mobile, tablet, desktop. '
+      'Missing: ${missing.join(', ')}. Extra: ${extra.join(', ')}.',
+    );
+  }
+
+  for (final entry in section.entries) {
+    final name = entry.key;
+    _validateTokenName(sectionName, name);
+    final token = _map(entry.value, 'Invalid token "$sectionName.$name"');
+    _requireNum(token['width'], '$sectionName.$name.width');
+    _requireNum(token['height'], '$sectionName.$name.height');
   }
 }
 
@@ -1818,6 +1880,14 @@ void updateAppTheme(Map<String, dynamic> data) {
     throw StateError('tokens.json must define at least one theme');
   }
 
+  final designSizes = data.containsKey('designSizes')
+      ? _map(data['designSizes'], 'Invalid "designSizes" in tokens.json')
+      : {
+          'mobile': {'width': 390, 'height': 844},
+          'tablet': {'width': 834, 'height': 1194},
+          'desktop': {'width': 1440, 'height': 1024},
+        };
+
   final themeFields = <String>[];
   final themeMapEntries = <String>[];
 
@@ -1843,6 +1913,7 @@ void updateAppTheme(Map<String, dynamic> data) {
   final output = '''
 import 'package:flutter/material.dart';
 
+import '../responsive/responsive_value.dart';
 import '../tokens/tokens.dart';
 import 'app_theme_extension.dart';
 
@@ -1853,12 +1924,24 @@ class AppTheme {
   static const DimensionTokens dimensions = DimensionTokens();
   static const ElevationTokens elevations = ElevationTokens();
 
+  static const Size mobileDesignSize = Size(${designSizes['mobile']['width']}, ${designSizes['mobile']['height']});
+  static const Size tabletDesignSize = Size(${designSizes['tablet']['width']}, ${designSizes['tablet']['height']});
+  static const Size desktopDesignSize = Size(${designSizes['desktop']['width']}, ${designSizes['desktop']['height']});
+
 ${themeFields.join('\n')}
   static final Map<String, ThemeData> themes = {
 ${themeMapEntries.join('\n')}
   };
 
   static ThemeData theme(String themeName) => themes[themeName] ?? themes.values.first;
+
+  static Size designSize(BuildContext context) {
+    return ResponsiveValue<Size>(
+      mobile: mobileDesignSize,
+      tablet: tabletDesignSize,
+      desktop: desktopDesignSize,
+    ).resolve(context);
+  }
 
   static ThemeData _buildTheme({
     required ${_tokenThemeBaseClassName()} colors,

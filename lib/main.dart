@@ -16,7 +16,7 @@ class App extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ScreenUtilInit(
-      designSize: const Size(390, 844),
+      designSize: AppTheme.designSize(context),
       builder: (_, child) {
         return MaterialApp(
           theme: AppTheme.theme(brandThemeName),

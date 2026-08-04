@@ -147,6 +147,18 @@ void main() {
     expect(content, contains('letterSpacing: 0.3.sp,'));
   });
 
+  test('generated app theme exposes responsive design size helpers', () {
+    final file = File('lib/core/design_system/theme/app_theme.dart');
+    final content = file.readAsStringSync();
+
+    expect(content, contains('static const Size mobileDesignSize = Size(390, 844);'));
+    expect(content, contains('static const Size tabletDesignSize = Size(834, 1194);'));
+    expect(content, contains('static const Size desktopDesignSize = Size(1440, 1024);'));
+    expect(content, contains('static Size designSize(BuildContext context)'));
+    expect(content, contains('ResponsiveValue<Size>('));
+    expect(content, isNot(contains('static Size designSizeForWidth(double width)')));
+  });
+
   test('typography wrapper removes stale @override for missing generated methods', () {
     final file = File('lib/core/design_system/tokens/typography_tokens.dart');
     final content = file.readAsStringSync();

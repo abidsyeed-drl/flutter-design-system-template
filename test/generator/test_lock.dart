@@ -15,8 +15,8 @@ Future<T> withGeneratorLock<T>(Future<T> Function() action) async {
 }
 
 Future<void> _acquireLockWithRetry(RandomAccessFile raf) async {
-  const maxAttempts = 100;
-  const retryDelay = Duration(milliseconds: 50);
+  const maxAttempts = 300;
+  const retryDelay = Duration(milliseconds: 100);
 
   for (var attempt = 1; attempt <= maxAttempts; attempt++) {
     try {

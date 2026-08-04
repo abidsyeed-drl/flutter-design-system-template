@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../responsive/responsive_value.dart';
 import '../tokens/tokens.dart';
 import 'app_theme_extension.dart';
 
@@ -9,6 +10,10 @@ class AppTheme {
   static const TypographyTokens typography = TypographyTokens();
   static const DimensionTokens dimensions = DimensionTokens();
   static const ElevationTokens elevations = ElevationTokens();
+
+  static const Size mobileDesignSize = Size(390, 844);
+  static const Size tabletDesignSize = Size(834, 1194);
+  static const Size desktopDesignSize = Size(1440, 1024);
 
   static final ThemeData light = _buildTheme(
     colors: const LightColorTokens(),
@@ -38,6 +43,14 @@ class AppTheme {
   };
 
   static ThemeData theme(String themeName) => themes[themeName] ?? themes.values.first;
+
+  static Size designSize(BuildContext context) {
+    return ResponsiveValue<Size>(
+      mobile: mobileDesignSize,
+      tablet: tabletDesignSize,
+      desktop: desktopDesignSize,
+    ).resolve(context);
+  }
 
   static ThemeData _buildTheme({
     required ColorTokensBase colors,
