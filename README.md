@@ -63,6 +63,8 @@ The app currently uses a selectable brand theme with system dark-mode support in
 - `dimensions.*.type` must be one of: `width`, `height`, `radius`
 - `elevations` values must define numeric `mobile`, `tablet`, `desktop`
 - Typography color references must exist in `themes.light.colors`
+- Typography `lineHeight` is optional, but when provided it must include numeric `mobile`, `tablet`, `desktop`
+- Typography `letterSpacing` is optional, but when provided it must be numeric
 - Optional per-theme `gradients` are supported
 - If gradients are present in `light`, all themes must define gradients with identical keys
 - Gradient types supported: `linear`, `radial`, `sweep`

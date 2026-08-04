@@ -136,4 +136,14 @@ void main() {
     expect(content, contains('double popover(context)'));
     expect(content, contains('double dialog(context)'));
   });
+
+  test('generated typography file contains lineHeight and letterSpacing support', () {
+    final file = File('lib/core/design_system/generated/generated_typography_tokens.dart');
+    final content = file.readAsStringSync();
+
+    expect(content, contains('TextStyle button(context)'));
+    expect(content, contains('final lineHeight = ResponsiveValue<double>('));
+    expect(content, contains('height: lineHeight / fontSize,'));
+    expect(content, contains('letterSpacing: 0.3.sp,'));
+  });
 }

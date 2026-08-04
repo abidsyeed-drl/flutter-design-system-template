@@ -257,6 +257,21 @@ void _validateTypography(
     _requireNum(size['tablet'], 'typography.$name.size.tablet');
     _requireNum(size['desktop'], 'typography.$name.size.desktop');
 
+    final lineHeight = token['lineHeight'];
+    if (lineHeight != null) {
+      final lh = _map(lineHeight, 'Invalid "typography.$name.lineHeight"');
+      _requireNum(lh['mobile'], 'typography.$name.lineHeight.mobile');
+      _requireNum(lh['tablet'], 'typography.$name.lineHeight.tablet');
+      _requireNum(lh['desktop'], 'typography.$name.lineHeight.desktop');
+    }
+
+    final letterSpacing = token['letterSpacing'];
+    if (letterSpacing != null && letterSpacing is! num) {
+      throw StateError(
+        'Invalid letterSpacing at "typography.$name.letterSpacing": "$letterSpacing". Expected numeric value.',
+      );
+    }
+
     final weight = token['weight'];
     if (weight is! num) {
       throw StateError(
@@ -1047,22 +1062,45 @@ String generateTextStyles(Map<String, dynamic> values) {
     final name = entry.key;
     final token = _map(entry.value, 'Invalid typography token for "$name"');
     final size = _map(token['size'], 'Missing typography size for "$name"');
+    final lineHeight = token['lineHeight'] == null
+        ? null
+        : _map(token['lineHeight'], 'Invalid typography lineHeight for "$name"');
     final colorName = token['color'] as String?;
 
     if (colorName == null) {
       throw StateError('Missing typography color for "$name"');
     }
 
+    final fontSizeExpr = '''ResponsiveValue<double>(
+      mobile: ${size['mobile']},
+      tablet: ${size['tablet']},
+      desktop: ${size['desktop']},
+    ).resolve(context).sp''';
+
+    final lineHeightBlock = lineHeight == null
+        ? ''
+        : '''
+    final lineHeight = ResponsiveValue<double>(
+      mobile: ${lineHeight['mobile']},
+      tablet: ${lineHeight['tablet']},
+      desktop: ${lineHeight['desktop']},
+    ).resolve(context).sp;
+''';
+
+    final lineHeightStyle = lineHeight == null ? '' : '\n      height: lineHeight / fontSize,';
+
+    final letterSpacing = token['letterSpacing'];
+    final letterSpacingStyle =
+        letterSpacing == null ? '' : '\n      letterSpacing: ${letterSpacing.toString()}.sp,';
+
     buffer.writeln('''
   TextStyle $name(context) {
+    final fontSize = $fontSizeExpr;
+$lineHeightBlock
     return TextStyle(
-      fontSize: ResponsiveValue<double>(
-        mobile: ${size['mobile']},
-        tablet: ${size['tablet']},
-        desktop: ${size['desktop']},
-      ).resolve(context).sp,
+      fontSize: fontSize,
       fontWeight: FontWeight.w${token['weight']},
-      color: Theme.of(context).extension<AppThemeExtension>()!.colors.$colorName,
+      color: Theme.of(context).extension<AppThemeExtension>()!.colors.$colorName,$lineHeightStyle$letterSpacingStyle
     );
   }
 ''');

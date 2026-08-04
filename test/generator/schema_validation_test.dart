@@ -162,6 +162,21 @@ void main() {
         ),
       );
     });
+
+    test('rejects fixture: invalid typography letterSpacing type', () {
+      final data = _readJson('test/fixtures/tokens_invalid_typography_letter_spacing_type.json');
+
+      expect(
+        () => generator.validateTokensSchema(data),
+        throwsA(
+          isA<StateError>().having(
+            (e) => e.message.toString(),
+            'message',
+            contains('Invalid letterSpacing'),
+          ),
+        ),
+      );
+    });
   });
 }
 
