@@ -8,7 +8,6 @@ import '../theme/app_theme_extension.dart';
 class TypographyTokens extends GeneratedTypographyTokens {
   const TypographyTokens();
 
-  @override
   TextStyle title(context) {
     final appTheme = Theme.of(context).extension<AppThemeExtension>()!;
     final size = ResponsiveValue<double>(

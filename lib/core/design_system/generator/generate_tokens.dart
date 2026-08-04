@@ -1408,6 +1408,7 @@ void updateTokenWrappers(Map<String, dynamic> data) {
       content = _ensureMethodOverrides(content, 'RadiusTokens', radius.keys, 'double');
     } else if (fileName == 'typography_tokens.dart') {
       content = _ensureMethodOverrides(content, 'TypographyTokens', typography.keys, 'TextStyle');
+      content = _removeStaleMethodOverrides(content, 'TypographyTokens', typography.keys);
     } else if (fileName == 'dimension_tokens.dart') {
       content = _ensureMethodOverrides(content, 'DimensionTokens', dimensions.keys, 'double');
     }
@@ -1479,6 +1480,33 @@ String _ensureMethodOverrides(
     }
 
     return body;
+  });
+}
+
+String _removeStaleMethodOverrides(
+  String content,
+  String className,
+  Iterable<dynamic> validMethodNames,
+) {
+  final allowed = validMethodNames.map((e) => e.toString()).toSet();
+
+  return _rewriteClassBody(content, className, (classBody) {
+    final pattern = RegExp(
+      r'(^[ \t]*)@override\s*\n\1([A-Za-z0-9_<>,? ]+)\s+([A-Za-z_][A-Za-z0-9_]*)\s*\(context\)\s*\{',
+      multiLine: true,
+    );
+
+    return classBody.replaceAllMapped(pattern, (match) {
+      final indent = match.group(1) ?? '  ';
+      final returnType = (match.group(2) ?? '').trim();
+      final methodName = match.group(3) ?? '';
+
+      if (allowed.contains(methodName)) {
+        return match.group(0)!;
+      }
+
+      return '$indent$returnType $methodName(context) {';
+    });
   });
 }
 

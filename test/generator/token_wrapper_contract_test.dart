@@ -146,4 +146,12 @@ void main() {
     expect(content, contains('height: lineHeight / fontSize,'));
     expect(content, contains('letterSpacing: 0.3.sp,'));
   });
+
+  test('typography wrapper removes stale @override for missing generated methods', () {
+    final file = File('lib/core/design_system/tokens/typography_tokens.dart');
+    final content = file.readAsStringSync();
+
+    expect(content, isNot(contains('@override\n  TextStyle title(context)')));
+    expect(content, contains('TextStyle title(context)'));
+  });
 }
