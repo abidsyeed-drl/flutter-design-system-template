@@ -109,3 +109,69 @@ flutter test
 ```
 
 Fixture files for invalid token inputs live under [test/fixtures](test/fixtures).
+
+## Figma To Flutter Guide (Beginner)
+
+If you are starting from zero, follow this order.
+
+### Step 1: Create a test Figma file
+
+Create a new Figma file and add Variables for:
+
+- Colors: primary, surface, background, textPrimary, textSecondary, error
+- Spacing: sm, md, lg
+- Radius: md
+- Typography: title, body
+- Dimensions: buttonHeight, icon, avatar, imageWidth, imageHeight
+
+Keep the naming exactly aligned with [lib/core/design_system/generator/tokens.json](lib/core/design_system/generator/tokens.json).
+
+### Step 2: Export JSON first (manual MVP)
+
+Use a Figma tokens plugin to export variable values to JSON, then map that export into the schema used by [lib/core/design_system/generator/tokens.json](lib/core/design_system/generator/tokens.json).
+
+For the first version, manual copy/paste is fine:
+
+1. Export from Figma plugin.
+2. Paste/update [lib/core/design_system/generator/tokens.json](lib/core/design_system/generator/tokens.json).
+3. Run generator command.
+4. Run tests.
+
+### Step 3: Local automation after export
+
+Once manual export works, automate the local part:
+
+1. Save plugin export to a known file (for example `figma-export.json`).
+2. Add a small transform script that converts plugin JSON to this project schema.
+3. Script writes final JSON to [lib/core/design_system/generator/tokens.json](lib/core/design_system/generator/tokens.json).
+4. Script runs [lib/core/design_system/generator/generate_tokens.dart](lib/core/design_system/generator/generate_tokens.dart).
+5. Script runs generator tests.
+
+This gives: Figma export -> transform -> generate -> validate.
+
+### Step 4: Full automatic sync (true end goal)
+
+To make it automatic from Figma to Flutter without manual copy/paste, yes, you need one of these:
+
+- A custom Figma plugin you build, or
+- A plugin that can sync to an external source (GitHub/HTTP endpoint) plus a local pull script.
+
+Important limitation:
+
+- Figma plugins cannot directly write into your local Flutter project folder for security reasons.
+
+So full automation usually looks like:
+
+1. Designer clicks sync/export in Figma plugin.
+2. Plugin pushes JSON to remote storage (repo, API, or hosted JSON file).
+3. Local script/CI pulls latest JSON.
+4. Transform + generator run automatically.
+5. Flutter app updates.
+
+### Recommended path for this repo
+
+1. Start with manual export into [lib/core/design_system/generator/tokens.json](lib/core/design_system/generator/tokens.json).
+2. Confirm generator + tests pass.
+3. Add transform script.
+4. Add remote sync.
+5. Later build custom plugin only if needed.
