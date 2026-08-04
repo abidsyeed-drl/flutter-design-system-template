@@ -185,6 +185,10 @@ void validateTokensSchema(Map<String, dynamic> data) {
     _map(data['elevations'], 'Missing "elevations" in tokens.json'),
     sectionName: 'elevations',
   );
+  _validateElevationAliases(
+    data,
+    elevations: _map(data['elevations'], 'Missing "elevations" in tokens.json'),
+  );
 
   _validateTypography(
     _map(data['typography'], 'Missing "typography" in tokens.json'),
@@ -267,6 +271,41 @@ void _validateTypography(
       throw StateError(
         'Unknown color reference at "typography.$name.color": "$color". '
         'Add this key under themes.light.colors.',
+      );
+    }
+  }
+}
+
+void _validateElevationAliases(
+  Map<String, dynamic> data, {
+  required Map<String, dynamic> elevations,
+}) {
+  if (!data.containsKey('elevationAliases')) {
+    return;
+  }
+
+  final aliases = _map(data['elevationAliases'], 'Invalid "elevationAliases" in tokens.json');
+  for (final entry in aliases.entries) {
+    final alias = entry.key;
+    _validateTokenName('elevationAliases', alias);
+
+    if (elevations.containsKey(alias)) {
+      throw StateError(
+        'Elevation alias "elevationAliases.$alias" conflicts with base elevation token "$alias".',
+      );
+    }
+
+    final target = entry.value;
+    if (target is! String || target.isEmpty) {
+      throw StateError(
+        'Invalid alias target at "elevationAliases.$alias": "$target". Expected elevation key string.',
+      );
+    }
+
+    if (!elevations.containsKey(target)) {
+      throw StateError(
+        'Unknown elevation alias target at "elevationAliases.$alias": "$target". '
+        'Target must exist in "elevations".',
       );
     }
   }
@@ -888,6 +927,20 @@ String _shadowColorExpression(dynamic value, num? opacity) {
 
 void generateElevations(Map<String, dynamic> data) {
   final elevations = _map(data['elevations'], 'Missing "elevations" in tokens.json');
+  final elevationAliases = data.containsKey('elevationAliases')
+      ? _map(data['elevationAliases'], 'Invalid "elevationAliases" in tokens.json')
+      : <String, dynamic>{};
+
+  final aliasBuffer = StringBuffer();
+  for (final entry in elevationAliases.entries) {
+    final alias = entry.key;
+    final target = entry.value as String;
+    aliasBuffer.writeln('''
+  double $alias(context) {
+    return $target(context);
+  }
+''');
+  }
 
   final output = '''
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -898,6 +951,7 @@ class GeneratedElevationTokens {
   const GeneratedElevationTokens();
 
 ${generateResponsiveDouble(elevations)}
+${aliasBuffer.toString()}
 }
 ''';
 
@@ -1095,6 +1149,9 @@ void updateTokenWrappers(Map<String, dynamic> data) {
 
   final spacing = _map(data['spacing'], 'Missing "spacing" in tokens.json');
   final elevations = _map(data['elevations'], 'Missing "elevations" in tokens.json');
+  final elevationAliases = data.containsKey('elevationAliases')
+      ? _map(data['elevationAliases'], 'Invalid "elevationAliases" in tokens.json')
+      : <String, dynamic>{};
   final radius = _map(data['radius'], 'Missing "radius" in tokens.json');
   final typography = _map(data['typography'], 'Missing "typography" in tokens.json');
   final dimensions = _map(data['dimensions'], 'Missing "dimensions" in tokens.json');
@@ -1303,7 +1360,12 @@ void updateTokenWrappers(Map<String, dynamic> data) {
     } else if (fileName == 'spacing_tokens.dart') {
       content = _ensureMethodOverrides(content, 'SpacingTokens', spacing.keys, 'double');
     } else if (fileName == 'elevation_tokens.dart') {
-      content = _ensureMethodOverrides(content, 'ElevationTokens', elevations.keys, 'double');
+      content = _ensureMethodOverrides(
+        content,
+        'ElevationTokens',
+        [...elevations.keys, ...elevationAliases.keys],
+        'double',
+      );
     } else if (fileName == 'radius_tokens.dart') {
       content = _ensureMethodOverrides(content, 'RadiusTokens', radius.keys, 'double');
     } else if (fileName == 'typography_tokens.dart') {
@@ -1738,6 +1800,9 @@ ${themeMapEntries.join('\n')}
 void updateContextExtension(Map<String, dynamic> data) {
   final themes = _map(data['themes'], 'Missing "themes" in tokens.json');
   final elevations = _map(data['elevations'], 'Missing "elevations" in tokens.json');
+  final elevationAliases = data.containsKey('elevationAliases')
+      ? _map(data['elevationAliases'], 'Invalid "elevationAliases" in tokens.json')
+      : <String, dynamic>{};
   final lightTheme = _map(themes['light'], 'Missing "themes.light" in tokens.json');
   final lightGradients = lightTheme.containsKey('gradients')
       ? _map(lightTheme['gradients'], 'Invalid "themes.light.gradients" in tokens.json')
@@ -1763,6 +1828,12 @@ void updateContextExtension(Map<String, dynamic> data) {
   for (final elevationName in elevations.keys) {
     elevationGetterBuffer.writeln(
       '  double get $elevationName => context.appTheme.elevations.$elevationName(context);',
+    );
+    elevationGetterBuffer.writeln();
+  }
+  for (final aliasName in elevationAliases.keys) {
+    elevationGetterBuffer.writeln(
+      '  double get $aliasName => context.appTheme.elevations.$aliasName(context);',
     );
     elevationGetterBuffer.writeln();
   }

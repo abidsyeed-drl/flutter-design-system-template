@@ -104,4 +104,12 @@ class ElevationExtension {
 
   double get level3 => context.appTheme.elevations.level3(context);
 
+  double get surface => context.appTheme.elevations.surface(context);
+
+  double get card => context.appTheme.elevations.card(context);
+
+  double get popover => context.appTheme.elevations.popover(context);
+
+  double get dialog => context.appTheme.elevations.dialog(context);
+
 }

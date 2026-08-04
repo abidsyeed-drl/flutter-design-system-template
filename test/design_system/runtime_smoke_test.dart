@@ -14,6 +14,8 @@ void main() {
     late double buttonHeight;
     late List<BoxShadow> cardShadow;
     late double level2;
+    late double surfaceElevation;
+    late double dialogElevation;
 
     await tester.pumpWidget(
       ScreenUtilInit(
@@ -31,6 +33,8 @@ void main() {
                 buttonHeight = context.dimensions.buttonHeight;
                 cardShadow = context.shadows.card;
                 level2 = context.elevation.level2;
+                surfaceElevation = context.elevation.surface;
+                dialogElevation = context.elevation.dialog;
                 return const SizedBox.shrink();
               },
             ),
@@ -47,6 +51,8 @@ void main() {
     expect(buttonHeight, greaterThan(0));
     expect(cardShadow, isNotEmpty);
     expect(level2, greaterThan(0));
+    expect(surfaceElevation, greaterThan(0));
+    expect(dialogElevation, greaterThan(surfaceElevation));
   });
 
   testWidgets('home screen renders with design-system themed app', (tester) async {

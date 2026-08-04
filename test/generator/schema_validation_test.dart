@@ -147,6 +147,21 @@ void main() {
         ),
       );
     });
+
+    test('rejects fixture: unknown elevation alias target', () {
+      final data = _readJson('test/fixtures/tokens_invalid_elevation_alias_target.json');
+
+      expect(
+        () => generator.validateTokensSchema(data),
+        throwsA(
+          isA<StateError>().having(
+            (e) => e.message.toString(),
+            'message',
+            contains('Unknown elevation alias target'),
+          ),
+        ),
+      );
+    });
   });
 }
 

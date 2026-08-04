@@ -149,6 +149,19 @@ Define elevations at top-level (responsive numeric values):
 }
 ```
 
+Optional semantic aliases can map UI terms to base levels:
+
+```json
+{
+	"elevationAliases": {
+		"surface": "level1",
+		"card": "level1",
+		"popover": "level2",
+		"dialog": "level3"
+	}
+}
+```
+
 Preferred approach: use color-key references in shadow layer `color` values (for example `shadow`, `overlay`) so shadow tones stay theme-aware.
 
 Generated outputs include:
@@ -158,6 +171,8 @@ Generated outputs include:
 - [lib/core/design_system/tokens/shadow_tokens.dart](lib/core/design_system/tokens/shadow_tokens.dart)
 - [lib/core/design_system/tokens/elevation_tokens.dart](lib/core/design_system/tokens/elevation_tokens.dart)
 - `context.shadows` and `context.elevation` accessors via [lib/core/design_system/extensions/context_extension.dart](lib/core/design_system/extensions/context_extension.dart)
+
+When aliases are configured, use semantic access in UI code, for example `context.elevation.card` and `context.elevation.dialog`.
 
 ## Test Commands
 

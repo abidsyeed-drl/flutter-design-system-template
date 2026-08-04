@@ -30,4 +30,21 @@ class GeneratedElevationTokens {
   }
 
 
+  double surface(context) {
+    return level1(context);
+  }
+
+  double card(context) {
+    return level1(context);
+  }
+
+  double popover(context) {
+    return level2(context);
+  }
+
+  double dialog(context) {
+    return level3(context);
+  }
+
+
 }

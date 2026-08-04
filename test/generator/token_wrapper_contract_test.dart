@@ -131,5 +131,9 @@ void main() {
     expect(content, contains('double level1(context)'));
     expect(content, contains('double level2(context)'));
     expect(content, contains('double level3(context)'));
+    expect(content, contains('double surface(context)'));
+    expect(content, contains('double card(context)'));
+    expect(content, contains('double popover(context)'));
+    expect(content, contains('double dialog(context)'));
   });
 }
