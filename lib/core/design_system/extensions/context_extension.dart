@@ -52,17 +52,17 @@ class SpaceExtension {
 
   SpaceExtension(this.context);
 
-  double get xs => context.appTheme.spacing.xs(context);
-
-  double get sm => context.appTheme.spacing.sm(context);
+  double get lg => context.appTheme.spacing.lg(context);
 
   double get md => context.appTheme.spacing.md(context);
 
-  double get lg => context.appTheme.spacing.lg(context);
+  double get sm => context.appTheme.spacing.sm(context);
+
+  double get x2xl => context.appTheme.spacing.x2xl(context);
 
   double get xl => context.appTheme.spacing.xl(context);
 
-  double get x2xl => context.appTheme.spacing.x2xl(context);
+  double get xs => context.appTheme.spacing.xs(context);
 
 }
 
@@ -71,17 +71,17 @@ class RadiusExtension {
 
   RadiusExtension(this.context);
 
-  double get xs => context.appTheme.radius.xs(context);
-
-  double get sm => context.appTheme.radius.sm(context);
-
-  double get md => context.appTheme.radius.md(context);
+  double get full => context.appTheme.radius.full(context);
 
   double get lg => context.appTheme.radius.lg(context);
 
+  double get md => context.appTheme.radius.md(context);
+
+  double get sm => context.appTheme.radius.sm(context);
+
   double get xl => context.appTheme.radius.xl(context);
 
-  double get full => context.appTheme.radius.full(context);
+  double get xs => context.appTheme.radius.xs(context);
 
 }
 
@@ -127,35 +127,35 @@ class DimensionExtension {
 
   DimensionExtension(this.context);
 
-  double get buttonHeight => context.appTheme.dimensions.buttonHeight(context);
-
-  double get icon => context.appTheme.dimensions.icon(context);
-
   double get avatar => context.appTheme.dimensions.avatar(context);
 
-  double get imageWidth => context.appTheme.dimensions.imageWidth(context);
+  double get bottomNavHeight => context.appTheme.dimensions.bottomNavHeight(context);
 
-  double get imageHeight => context.appTheme.dimensions.imageHeight(context);
+  double get buttonHeight => context.appTheme.dimensions.buttonHeight(context);
 
   double get cardPadding => context.appTheme.dimensions.cardPadding(context);
 
   double get cardRadius => context.appTheme.dimensions.cardRadius(context);
 
-  double get inputHeight => context.appTheme.dimensions.inputHeight(context);
-
-  double get navBarHeight => context.appTheme.dimensions.navBarHeight(context);
-
   double get chipHeight => context.appTheme.dimensions.chipHeight(context);
 
   double get dividerThickness => context.appTheme.dimensions.dividerThickness(context);
 
-  double get statusBarHeight => context.appTheme.dimensions.statusBarHeight(context);
-
-  double get bottomNavHeight => context.appTheme.dimensions.bottomNavHeight(context);
-
   double get doctorCardHeight => context.appTheme.dimensions.doctorCardHeight(context);
 
+  double get icon => context.appTheme.dimensions.icon(context);
+
+  double get imageHeight => context.appTheme.dimensions.imageHeight(context);
+
+  double get imageWidth => context.appTheme.dimensions.imageWidth(context);
+
+  double get inputHeight => context.appTheme.dimensions.inputHeight(context);
+
+  double get navBarHeight => context.appTheme.dimensions.navBarHeight(context);
+
   double get queueNumberSize => context.appTheme.dimensions.queueNumberSize(context);
+
+  double get statusBarHeight => context.appTheme.dimensions.statusBarHeight(context);
 
 }
 
@@ -164,18 +164,18 @@ class ElevationExtension {
 
   ElevationExtension(this.context);
 
+  double get card => context.appTheme.elevations.card(context);
+
+  double get dialog => context.appTheme.elevations.dialog(context);
+
   double get level1 => context.appTheme.elevations.level1(context);
 
   double get level2 => context.appTheme.elevations.level2(context);
 
   double get level3 => context.appTheme.elevations.level3(context);
 
-  double get surface => context.appTheme.elevations.surface(context);
-
-  double get card => context.appTheme.elevations.card(context);
-
   double get popover => context.appTheme.elevations.popover(context);
 
-  double get dialog => context.appTheme.elevations.dialog(context);
+  double get surface => context.appTheme.elevations.surface(context);
 
 }

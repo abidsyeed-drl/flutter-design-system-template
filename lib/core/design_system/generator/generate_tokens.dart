@@ -2133,7 +2133,12 @@ void updateContextExtension(Map<String, dynamic> data) {
 
   final spacingGetterBuffer = StringBuffer();
   final spacingMemberMap = _tokenMemberMap(spacing.keys, 'spacing');
-  for (final spacingName in spacingMemberMap.values) {
+  final spacingMethodNames = <String>{...spacingMemberMap.values};
+  spacingMethodNames.addAll(
+    _collectWrapperMethods('lib/core/design_system/tokens/spacing_tokens.dart', 'double'),
+  );
+  final orderedSpacingMethods = spacingMethodNames.toList()..sort();
+  for (final spacingName in orderedSpacingMethods) {
     spacingGetterBuffer.writeln(
       '  double get $spacingName => context.appTheme.spacing.$spacingName(context);',
     );
@@ -2142,7 +2147,12 @@ void updateContextExtension(Map<String, dynamic> data) {
 
   final radiusGetterBuffer = StringBuffer();
   final radiusMemberMap = _tokenMemberMap(radius.keys, 'radius');
-  for (final radiusName in radiusMemberMap.values) {
+  final radiusMethodNames = <String>{...radiusMemberMap.values};
+  radiusMethodNames.addAll(
+    _collectWrapperMethods('lib/core/design_system/tokens/radius_tokens.dart', 'double'),
+  );
+  final orderedRadiusMethods = radiusMethodNames.toList()..sort();
+  for (final radiusName in orderedRadiusMethods) {
     radiusGetterBuffer.writeln(
       '  double get $radiusName => context.appTheme.radius.$radiusName(context);',
     );
@@ -2168,11 +2178,32 @@ void updateContextExtension(Map<String, dynamic> data) {
 
   final dimensionGetterBuffer = StringBuffer();
   final dimensionMemberMap = _tokenMemberMap(dimensions.keys, 'dimensions');
-  for (final dimName in dimensionMemberMap.values) {
+  final dimensionMethodNames = <String>{...dimensionMemberMap.values};
+  dimensionMethodNames.addAll(
+    _collectWrapperMethods('lib/core/design_system/tokens/dimension_tokens.dart', 'double'),
+  );
+  final orderedDimensionMethods = dimensionMethodNames.toList()..sort();
+  for (final dimName in orderedDimensionMethods) {
     dimensionGetterBuffer.writeln(
       '  double get $dimName => context.appTheme.dimensions.$dimName(context);',
     );
     dimensionGetterBuffer.writeln();
+  }
+
+  final elevationMethodNames = <String>{
+    ...elevationMemberMap.values,
+    ...elevationAliasMemberMap.values,
+  };
+  elevationMethodNames.addAll(
+    _collectWrapperMethods('lib/core/design_system/tokens/elevation_tokens.dart', 'double'),
+  );
+  final orderedElevationMethods = elevationMethodNames.toList()..sort();
+  elevationGetterBuffer.clear();
+  for (final elevationName in orderedElevationMethods) {
+    elevationGetterBuffer.writeln(
+      '  double get $elevationName => context.appTheme.elevations.$elevationName(context);',
+    );
+    elevationGetterBuffer.writeln();
   }
 
   final output = '''
