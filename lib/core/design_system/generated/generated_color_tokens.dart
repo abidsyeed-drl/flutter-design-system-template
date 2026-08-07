@@ -5,8 +5,14 @@ abstract class GeneratedThemeColorTokens {
   Color get primary;
   Color get primaryLight;
   Color get primaryDark;
+  Color get primarySurface;
+  Color get primaryBlue100;
   Color get secondary;
   Color get secondaryLight;
+  Color get secondarySurface;
+  Color get accent;
+  Color get accentLight;
+  Color get accentSurface;
   Color get surface;
   Color get surfaceVariant;
   Color get surfaceElevated;
@@ -15,17 +21,23 @@ abstract class GeneratedThemeColorTokens {
   Color get card;
   Color get cardBorder;
   Color get textPrimary;
+  Color get textHeading;
+  Color get textBody;
+  Color get textSubtle;
   Color get textSecondary;
   Color get textTertiary;
   Color get textOnPrimary;
   Color get textLink;
   Color get textDisabled;
+  Color get black;
+  Color get gray400;
   Color get error;
   Color get errorLight;
   Color get success;
   Color get successLight;
   Color get warning;
   Color get warningLight;
+  Color get warningSurface;
   Color get info;
   Color get infoLight;
   Color get icon;
@@ -62,9 +74,21 @@ class GeneratedLightColorTokens extends GeneratedThemeColorTokens {
   @override
   Color get primaryDark => const Color(0xff1D4ED8);
   @override
+  Color get primarySurface => const Color(0xffE8EEFF);
+  @override
+  Color get primaryBlue100 => const Color(0xffEBF3FC);
+  @override
   Color get secondary => const Color(0xff7C3AED);
   @override
   Color get secondaryLight => const Color(0xffEDE9FE);
+  @override
+  Color get secondarySurface => const Color(0xffF5F3FF);
+  @override
+  Color get accent => const Color(0xff10B981);
+  @override
+  Color get accentLight => const Color(0xffECFDF5);
+  @override
+  Color get accentSurface => const Color(0xffD1FAE5);
   @override
   Color get surface => const Color(0xffFFFFFF);
   @override
@@ -82,6 +106,12 @@ class GeneratedLightColorTokens extends GeneratedThemeColorTokens {
   @override
   Color get textPrimary => const Color(0xff111827);
   @override
+  Color get textHeading => const Color(0xff1E293B);
+  @override
+  Color get textBody => const Color(0xff475569);
+  @override
+  Color get textSubtle => const Color(0xff334155);
+  @override
   Color get textSecondary => const Color(0xff6B7280);
   @override
   Color get textTertiary => const Color(0xff94A3B8);
@@ -91,6 +121,10 @@ class GeneratedLightColorTokens extends GeneratedThemeColorTokens {
   Color get textLink => const Color(0xff2563EB);
   @override
   Color get textDisabled => const Color(0xffCBD5E1);
+  @override
+  Color get black => const Color(0xff000000);
+  @override
+  Color get gray400 => const Color(0xff9CA3AF);
   @override
   Color get error => const Color(0xffDC2626);
   @override
@@ -103,6 +137,8 @@ class GeneratedLightColorTokens extends GeneratedThemeColorTokens {
   Color get warning => const Color(0xffF59E0B);
   @override
   Color get warningLight => const Color(0xffFEF3C7);
+  @override
+  Color get warningSurface => const Color(0xffFFF7ED);
   @override
   Color get info => const Color(0xff0891B2);
   @override
@@ -164,9 +200,21 @@ class GeneratedDarkColorTokens extends GeneratedThemeColorTokens {
   @override
   Color get primaryDark => const Color(0xff93C5FD);
   @override
+  Color get primarySurface => const Color(0xff1E3A8A);
+  @override
+  Color get primaryBlue100 => const Color(0xff172554);
+  @override
   Color get secondary => const Color(0xffA78BFA);
   @override
   Color get secondaryLight => const Color(0xff2E1065);
+  @override
+  Color get secondarySurface => const Color(0xff4C1D95);
+  @override
+  Color get accent => const Color(0xff34D399);
+  @override
+  Color get accentLight => const Color(0xff064E3B);
+  @override
+  Color get accentSurface => const Color(0xff065F46);
   @override
   Color get surface => const Color(0xff1F2937);
   @override
@@ -184,6 +232,12 @@ class GeneratedDarkColorTokens extends GeneratedThemeColorTokens {
   @override
   Color get textPrimary => const Color(0xffFFFFFF);
   @override
+  Color get textHeading => const Color(0xffF1F5F9);
+  @override
+  Color get textBody => const Color(0xffCBD5E1);
+  @override
+  Color get textSubtle => const Color(0xffBAC4D4);
+  @override
   Color get textSecondary => const Color(0xff9CA3AF);
   @override
   Color get textTertiary => const Color(0xff6B7280);
@@ -193,6 +247,10 @@ class GeneratedDarkColorTokens extends GeneratedThemeColorTokens {
   Color get textLink => const Color(0xff60A5FA);
   @override
   Color get textDisabled => const Color(0xff4B5563);
+  @override
+  Color get black => const Color(0xffFFFFFF);
+  @override
+  Color get gray400 => const Color(0xff6B7280);
   @override
   Color get error => const Color(0xffF87171);
   @override
@@ -205,6 +263,8 @@ class GeneratedDarkColorTokens extends GeneratedThemeColorTokens {
   Color get warning => const Color(0xffFBBF24);
   @override
   Color get warningLight => const Color(0xff451A03);
+  @override
+  Color get warningSurface => const Color(0xff78350F);
   @override
   Color get info => const Color(0xff22D3EE);
   @override
@@ -266,9 +326,21 @@ class GeneratedAuroraColorTokens extends GeneratedThemeColorTokens {
   @override
   Color get primaryDark => const Color(0xff0284C7);
   @override
+  Color get primarySurface => const Color(0xffE0F2FE);
+  @override
+  Color get primaryBlue100 => const Color(0xffF0F9FF);
+  @override
   Color get secondary => const Color(0xff06B6D4);
   @override
   Color get secondaryLight => const Color(0xffCFFAFE);
+  @override
+  Color get secondarySurface => const Color(0xffECFEFF);
+  @override
+  Color get accent => const Color(0xff14B8A6);
+  @override
+  Color get accentLight => const Color(0xffCCFBF1);
+  @override
+  Color get accentSurface => const Color(0xffD1FAE5);
   @override
   Color get surface => const Color(0xffF0FDFF);
   @override
@@ -286,6 +358,12 @@ class GeneratedAuroraColorTokens extends GeneratedThemeColorTokens {
   @override
   Color get textPrimary => const Color(0xff0F172A);
   @override
+  Color get textHeading => const Color(0xff0C4A6E);
+  @override
+  Color get textBody => const Color(0xff334155);
+  @override
+  Color get textSubtle => const Color(0xff1E3A5F);
+  @override
   Color get textSecondary => const Color(0xff334155);
   @override
   Color get textTertiary => const Color(0xff64748B);
@@ -295,6 +373,10 @@ class GeneratedAuroraColorTokens extends GeneratedThemeColorTokens {
   Color get textLink => const Color(0xff0EA5E9);
   @override
   Color get textDisabled => const Color(0xff94A3B8);
+  @override
+  Color get black => const Color(0xff000000);
+  @override
+  Color get gray400 => const Color(0xff94A3B8);
   @override
   Color get error => const Color(0xffE11D48);
   @override
@@ -307,6 +389,8 @@ class GeneratedAuroraColorTokens extends GeneratedThemeColorTokens {
   Color get warning => const Color(0xffD97706);
   @override
   Color get warningLight => const Color(0xffFEF9C3);
+  @override
+  Color get warningSurface => const Color(0xffFFFBEB);
   @override
   Color get info => const Color(0xff0E7490);
   @override
